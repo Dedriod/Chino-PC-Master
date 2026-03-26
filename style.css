@@ -382,19 +382,77 @@ h1, h2, h3 {
     align-items: center;
 }
 
+/* Botones auth: mismo lenguaje visual que Contacto; reset de estilos de <button> del navegador */
 .btn-auth {
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--cobalt-blue);
-    background: transparent;
-    color: var(--white);
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-family: "Inter", sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
     cursor: pointer;
-    transition: 0.3s ease;
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
-.btn-auth:hover {
+.btn-auth:focus-visible {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 2px;
+}
+
+.btn-auth--login {
+    background: var(--cobalt-blue);
+    color: var(--white);
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    box-shadow: 0 0 0 1px rgba(0, 71, 171, 0.35);
+}
+
+.btn-auth--login:hover {
+    background: var(--neon-cyan);
+    color: var(--dark-gray);
     border-color: var(--neon-cyan);
+    box-shadow: 0 0 14px rgba(0, 255, 255, 0.25);
+}
+
+.btn-auth--register {
+    background: transparent;
+    color: var(--white);
+    border: 1px solid rgba(0, 255, 255, 0.45);
+}
+
+.btn-auth--register:hover {
+    background: rgba(0, 255, 255, 0.08);
     color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+}
+
+.btn-auth--logout {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid rgba(160, 160, 160, 0.45);
+    font-weight: 500;
+}
+
+.btn-auth--logout:hover {
+    color: var(--white);
+    border-color: var(--accent-orange);
+}
+
+@media (max-width: 768px) {
+    .btn-auth {
+        padding: 8px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .btn-auth {
+        padding: 7px 10px;
+        font-size: 0.72rem;
+    }
 }
 
 .auth-greeting {
