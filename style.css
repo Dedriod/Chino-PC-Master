@@ -294,6 +294,11 @@ h1, h2, h3 {
     color: var(--neon-cyan);
 }
 
+.dropdown-btn.is-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* RESPONSIVE - Dropdown Button */
 @media (max-width: 768px) {
     .dropdown-btn {
@@ -370,6 +375,162 @@ h1, h2, h3 {
 .dropdown-item:hover {
     background-color: var(--dark-gray);
     color: var(--neon-cyan);
+}
+
+.auth-nav-item {
+    display: flex;
+    align-items: center;
+}
+
+.btn-auth {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--cobalt-blue);
+    background: transparent;
+    color: var(--white);
+    cursor: pointer;
+    transition: 0.3s ease;
+}
+
+.btn-auth:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+}
+
+.auth-greeting {
+    color: var(--text-body);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.auth-message {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 2000;
+    min-width: 240px;
+    max-width: 420px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--cobalt-blue);
+    background: rgba(33, 33, 33, 0.95);
+    color: var(--white);
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.auth-message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.auth-message.success {
+    border-color: var(--neon-cyan);
+    background: rgba(18, 108, 54, 0.92);
+    color: #dcffe9;
+}
+
+.auth-message.error {
+    border-color: var(--accent-orange);
+    background: rgba(144, 24, 24, 0.94);
+    color: #ffe5e5;
+}
+
+.auth-message.info {
+    border-color: var(--cobalt-blue);
+    background: rgba(0, 71, 171, 0.92);
+    color: #e8f2ff;
+}
+
+.auth-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 60000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.auth-modal[hidden] {
+    display: none !important;
+}
+
+.auth-modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+}
+
+.auth-modal-dialog {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 540px;
+    border: 1px solid var(--cobalt-blue);
+    border-radius: 14px;
+    background: var(--dark-gray);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    padding: 18px;
+}
+
+.auth-modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.auth-modal-close {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    border: 1px solid var(--cobalt-blue);
+    background: transparent;
+    color: var(--white);
+    font-size: 1.4rem;
+    cursor: pointer;
+}
+
+.auth-modal-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.auth-modal-tabs[hidden] {
+    display: none !important;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--cobalt-blue);
+    background: transparent;
+    color: var(--white);
+    cursor: pointer;
+}
+
+.auth-tab.active {
+    background: var(--cobalt-blue);
+    border-color: var(--neon-cyan);
+}
+
+.auth-form {
+    display: block;
+}
+
+.auth-form[hidden] {
+    display: none !important;
+}
+
+.protected-link.protected-disabled {
+    opacity: 0.55;
+    pointer-events: auto;
 }
 
 /* HERO SECTION - LOGO PROTAGONISTA */

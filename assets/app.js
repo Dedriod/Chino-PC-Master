@@ -1,54 +1,466 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const navLinks = document.querySelectorAll('.nav-links a, .dropdown-item, .spa-page-link');
-    const homeLink = document.getElementById('home-link');
-    const dropdownBtn = document.querySelector('.dropdown-btn');
-    const dropdownMenu = document.querySelector('.dropdown-menu');
-    const mainContent = document.getElementById('main-content');
+document.addEventListener("DOMContentLoaded", () => {
+    const BACKEND_WEB_APP_URL =
+        "https://script.google.com/macros/s/AKfycbylYwlJaLInQ7dtEdhC40IOTGD8G3GqTL0yN343s5I5MOLSeTTdQAgN44A7ktEUPK3oHw/exec";
+    const AUTH_STORAGE_KEY = "cpm_session";
+    const PUBLIC_PAGES = new Set(["home", "soluciones", "trayectoria", "contacto", "webapps"]);
+    const PERMISSION_PAGES = {
+        rifa: "rifa",
+        certificados: "certificados"
+    };
 
-    // Abrir/cerrar menú desplegable
-    dropdownBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        dropdownMenu.classList.toggle('show');
-    });
+    const homeLink = document.getElementById("home-link");
+    const dropdownBtn = document.getElementById("webapps-menu-btn");
+    const dropdownMenu = document.querySelector(".dropdown-menu");
+    const webappsNavItem = document.getElementById("webapps-nav-item");
+    const mainContent = document.getElementById("main-content");
+    const authMessage = document.getElementById("auth-message");
+    const authModal = document.getElementById("auth-modal");
+    const authBackdrop = document.getElementById("auth-backdrop");
+    const authModalClose = document.getElementById("auth-modal-close");
+    const loginTab = document.getElementById("tab-login");
+    const registerTab = document.getElementById("tab-register");
+    const authTabs = document.querySelector(".auth-modal-tabs");
+    const loginForm = document.getElementById("login-form");
+    const registerForm = document.getElementById("register-form");
+    const btnLoginOpen = document.getElementById("btn-login-open");
+    const btnRegisterOpen = document.getElementById("btn-register-open");
+    const btnLogout = document.getElementById("btn-logout");
+    const authGreeting = document.getElementById("auth-greeting");
+    const menuRifa = dropdownMenu.querySelector('[data-page="rifa"]');
+    const menuCertificados = dropdownMenu.querySelector('[data-page="certificados"]');
+    const menuAdmin = dropdownMenu.querySelector('[data-page="admin"]');
+    let currentPage = "home";
 
-    // Cerrar menú al hacer click fuera
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.dropdown')) {
-            dropdownMenu.classList.remove('show');
+    let messageTimerId = null;
+    function showMessage(text, kind = "info", durationMs = 4200) {
+        if (!authMessage) return;
+        authMessage.textContent = text;
+        authMessage.className = `auth-message show ${kind}`;
+        if (messageTimerId) {
+            window.clearTimeout(messageTimerId);
+            messageTimerId = null;
         }
-    });
+        if (durationMs > 0) {
+            messageTimerId = window.setTimeout(() => {
+                authMessage.classList.remove("show");
+                messageTimerId = null;
+            }, durationMs);
+        }
+    }
 
-    // Manejar click en el logo para ir a inicio
-    homeLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        loadPage('home');
-        window.history.pushState({ page: 'home' }, '', '#');
-    });
+    function normalizeBoolean(value) {
+        if (typeof value === "boolean") return value;
+        if (typeof value === "string") {
+            const v = value.trim().toLowerCase();
+            return v === "true" || v === "1" || v === "yes";
+        }
+        if (typeof value === "number") return value === 1;
+        return false;
+    }
 
-    // Cargar contenido dinámicamente con transiciones
-    async function loadPage(page) {
+    function normalizeSession(rawData) {
+        const source = rawData?.usuario || rawData?.user || rawData?.data || rawData || {};
+        const permisosRaw = source.permisos || rawData?.permisos || {};
+        const permisos = {
+            rifa: normalizeBoolean(permisosRaw.rifa),
+            certificados: normalizeBoolean(permisosRaw.certificados)
+        };
+
+        return {
+            username: String(source.username || source.userName || source.usuario || "").trim(),
+            email: String(source.email || source.correo || "").trim(),
+            permisos,
+            isAdmin: normalizeBoolean(source.isAdmin ?? rawData?.isAdmin)
+        };
+    }
+
+    function getSession() {
+        const raw = sessionStorage.getItem(AUTH_STORAGE_KEY);
+        if (!raw) return null;
         try {
-            // Cargar el contenido
-            const response = await fetch(`${page}.html`);
-            if (!response.ok) throw new Error('Página no encontrada');
-            const content = await response.text();
-            mainContent.innerHTML = content;
-            
-            // Manejar página rifa con animación especial
-            if (page === 'rifa') {
-                await handleRifaAnimation();
+            const parsed = JSON.parse(raw);
+            return normalizeSession(parsed);
+        } catch (error) {
+            console.error("Sesion invalida en sessionStorage:", error);
+            sessionStorage.removeItem(AUTH_STORAGE_KEY);
+            return null;
+        }
+    }
+
+    function setSession(sessionData) {
+        const safe = normalizeSession(sessionData);
+        sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(safe));
+        return safe;
+    }
+
+    function clearSession() {
+        sessionStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+
+    function canAccessPage(page, session) {
+        if (PUBLIC_PAGES.has(page)) return true;
+        if (page === "admin") return Boolean(session && session.isAdmin);
+        const requiredPermission = PERMISSION_PAGES[page];
+        if (!requiredPermission) return true;
+        return Boolean(session && session.permisos && session.permisos[requiredPermission] === true);
+    }
+
+    function applyProtectedLinksState() {
+        const session = getSession();
+        const protectedLinks = document.querySelectorAll(".protected-link");
+        protectedLinks.forEach((link) => {
+            const permission = link.getAttribute("data-requires-permission");
+            const enabled = Boolean(session && permission && session.permisos?.[permission]);
+            link.classList.toggle("protected-disabled", !enabled);
+            link.setAttribute("aria-disabled", String(!enabled));
+            if (!enabled) {
+                link.title = "Necesitas iniciar sesion con permisos para acceder";
             } else {
-                const mainLogo = document.querySelector('.main-logo');
-                if (mainLogo) {
-                    mainLogo.classList.remove('logo-animate-up');
+                link.removeAttribute("title");
+            }
+        });
+    }
+
+    function updateNavigationBySession() {
+        const session = getSession();
+        const canRifa = Boolean(session && session.permisos?.rifa);
+        const canCertificados = Boolean(session && session.permisos?.certificados);
+        const canAdmin = Boolean(session && session.isAdmin);
+        const hasAnyWebAppAccess = canRifa || canCertificados || canAdmin;
+
+        if (webappsNavItem) {
+            webappsNavItem.hidden = !hasAnyWebAppAccess;
+        }
+        menuRifa.hidden = !canRifa;
+        menuCertificados.hidden = !canCertificados;
+        menuAdmin.hidden = !canAdmin;
+        dropdownBtn.disabled = false;
+        dropdownBtn.setAttribute("aria-disabled", "false");
+        dropdownBtn.classList.remove("is-disabled");
+        if (!hasAnyWebAppAccess) {
+            dropdownMenu.classList.remove("show");
+        }
+
+        btnLoginOpen.hidden = Boolean(session);
+        btnRegisterOpen.hidden = Boolean(session);
+        btnLogout.hidden = !session;
+
+        if (session) {
+            const usernameOrEmail = session.username || session.email || "Usuario";
+            authGreeting.hidden = false;
+            authGreeting.textContent = `Bienvenido, ${usernameOrEmail}`;
+        } else {
+            authGreeting.hidden = true;
+            authGreeting.textContent = "";
+        }
+
+        applyProtectedLinksState();
+    }
+
+    function switchAuthTab(tabName) {
+        const isLogin = tabName === "login";
+        loginTab.classList.toggle("active", isLogin);
+        registerTab.classList.toggle("active", !isLogin);
+        loginTab.setAttribute("aria-selected", String(isLogin));
+        registerTab.setAttribute("aria-selected", String(!isLogin));
+        loginForm.hidden = !isLogin;
+        registerForm.hidden = isLogin;
+        document.getElementById("auth-modal-title").textContent = isLogin
+            ? "Iniciar Sesion"
+            : "Crear Cuenta";
+    }
+
+    function openAuthModal(tab = "login") {
+        authModal.hidden = false;
+        switchAuthTab(tab);
+        if (authTabs) authTabs.hidden = true;
+    }
+
+    function closeAuthModal() {
+        authModal.hidden = true;
+    }
+
+    function isEmailValid(email) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+
+    async function callBackend(payload) {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+        const rawPayload = JSON.stringify(payload);
+
+        async function parseResponse(response) {
+            const rawText = await response.text();
+            let result;
+            try {
+                result = JSON.parse(rawText);
+            } catch (error) {
+                throw new Error("Respuesta no JSON desde Apps Script.");
+            }
+
+            if (!response.ok) {
+                throw new Error(result?.message || `Error HTTP ${response.status}`);
+            }
+            if (result?.status !== "SUCCESS") {
+                throw new Error(result?.message || "Operacion no completada.");
+            }
+            return result;
+        }
+
+        try {
+            // Intento 1: JSON explícito.
+            const response = await fetch(BACKEND_WEB_APP_URL, {
+                method: "POST",
+                mode: "cors",
+                redirect: "follow",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: rawPayload,
+                signal: controller.signal
+            });
+            return await parseResponse(response);
+        } catch (error) {
+            if (error?.name === "AbortError") {
+                throw new Error("Tiempo de espera agotado con el backend.");
+            }
+            if (error instanceof TypeError) {
+                try {
+                    // Fallback para Apps Script: solicitud simple (text/plain) evita preflight CORS.
+                    const fallbackResponse = await fetch(BACKEND_WEB_APP_URL, {
+                        method: "POST",
+                        mode: "cors",
+                        redirect: "follow",
+                        headers: {
+                            "Content-Type": "text/plain;charset=utf-8"
+                        },
+                        body: rawPayload,
+                        signal: controller.signal
+                    });
+                    return await parseResponse(fallbackResponse);
+                } catch (fallbackError) {
+                    if (fallbackError?.name === "AbortError") {
+                        throw new Error("Tiempo de espera agotado con el backend.");
+                    }
+                    if (fallbackError instanceof TypeError) {
+                        throw new Error("Fallo de red: no se pudo conectar al servidor.");
+                    }
+                    throw fallbackError;
                 }
             }
-            
-            window.scrollTo(0, 0);
-        } catch (error) {
-            mainContent.innerHTML = '<p>Error al cargar la página.</p>';
-            console.error(error);
+            throw error;
+        } finally {
+            window.clearTimeout(timeoutId);
         }
+    }
+
+    async function submitRegistro(formData) {
+        const username = String(formData.get("username") || "").trim();
+        const email = String(formData.get("email") || "").trim();
+        const emailConfirm = String(formData.get("emailConfirm") || "").trim();
+        const password = String(formData.get("password") || "");
+        const passwordConfirm = String(formData.get("passwordConfirm") || "");
+
+        if (!username || !email || !emailConfirm || !password || !passwordConfirm) {
+            throw new Error("Todos los campos de registro son obligatorios.");
+        }
+        if (!isEmailValid(email)) {
+            throw new Error("Formato de email invalido.");
+        }
+        if (email.toLowerCase() !== emailConfirm.toLowerCase()) {
+            throw new Error("Los correos no coinciden.");
+        }
+        if (password !== passwordConfirm) {
+            throw new Error("Las contrasenas no coinciden.");
+        }
+
+        return callBackend({
+            action: "registro",
+            datos: {
+                user: username,
+                email,
+                pass: password
+            }
+        });
+    }
+
+    async function submitLogin(formData) {
+        const identificador = String(formData.get("identificador") || "").trim();
+        const password = String(formData.get("password") || "");
+        if (!identificador || !password) {
+            throw new Error("Debes ingresar identificador y contrasena.");
+        }
+        return callBackend({
+            action: "login",
+            user: identificador,
+            pass: password
+        });
+    }
+
+    async function submitContacto(formData) {
+        const nombre = String(formData.get("nombre") || "").trim();
+        const email = String(formData.get("email") || "").trim();
+        const asunto = String(formData.get("asunto") || "").trim();
+        const mensaje = String(formData.get("mensaje") || "").trim();
+
+        if (!nombre || !email || !asunto || !mensaje) {
+            throw new Error("Completa todos los campos del formulario de contacto.");
+        }
+        if (!isEmailValid(email)) {
+            throw new Error("Ingresa un email valido para contacto.");
+        }
+
+        return callBackend({
+            action: "contacto",
+            datos: {
+                nombre,
+                email,
+                asunto,
+                mensaje
+            }
+        });
+    }
+
+    function setupRealtimeRegisterValidation() {
+        const registerEmail = document.getElementById("register-email");
+        const registerEmailConfirm = document.getElementById("register-email-confirm");
+        const registerPassword = document.getElementById("register-password");
+        const registerPasswordConfirm = document.getElementById("register-password-confirm");
+
+        if (!registerEmail || !registerEmailConfirm || !registerPassword || !registerPasswordConfirm) {
+            return;
+        }
+
+        const validate = () => {
+            const email = registerEmail.value.trim();
+            const emailConfirm = registerEmailConfirm.value.trim();
+            const password = registerPassword.value;
+            const passwordConfirm = registerPasswordConfirm.value;
+
+            if (emailConfirm && email.toLowerCase() !== emailConfirm.toLowerCase()) {
+                registerEmailConfirm.setCustomValidity("Los correos no coinciden.");
+            } else {
+                registerEmailConfirm.setCustomValidity("");
+            }
+
+            if (passwordConfirm && password !== passwordConfirm) {
+                registerPasswordConfirm.setCustomValidity("Las contrasenas no coinciden.");
+            } else {
+                registerPasswordConfirm.setCustomValidity("");
+            }
+        };
+
+        [registerEmail, registerEmailConfirm, registerPassword, registerPasswordConfirm].forEach((input) => {
+            input.addEventListener("input", validate);
+        });
+    }
+
+    function checkAccess(page) {
+        const pageName = resolvePage(page);
+        const session = getSession();
+        if (canAccessPage(pageName, session)) return true;
+        routeDenied(pageName);
+        return false;
+    }
+
+    function protectRoutes(page) {
+        return checkAccess(page);
+    }
+
+    function routeDenied(page) {
+        const session = getSession();
+        if (!session) {
+            showMessage("Debes iniciar sesion para acceder a esta seccion.", "error");
+            openAuthModal("login");
+        } else {
+            showMessage("Tu usuario no tiene permisos para esta seccion.", "error");
+        }
+        navigateTo("home", { replaceHistory: true, skipGuard: true });
+        return false;
+    }
+
+    function resolvePage(rawPage) {
+        const clean = String(rawPage || "").replace(/^#/, "").trim().toLowerCase();
+        return clean || "home";
+    }
+
+    async function loadPage(page, options = {}) {
+        const pageName = resolvePage(page);
+        const session = getSession();
+        if (!options.skipGuard && !canAccessPage(pageName, session)) {
+            return routeDenied(pageName);
+        }
+
+        try {
+            const response = await fetch(`${pageName}.html`);
+            if (!response.ok) throw new Error("Pagina no encontrada");
+            const content = await response.text();
+            mainContent.innerHTML = content;
+            currentPage = pageName;
+
+            if (pageName === "rifa") {
+                await handleRifaAnimation();
+            } else {
+                const mainLogo = document.querySelector(".main-logo");
+                if (mainLogo) mainLogo.classList.remove("logo-animate-up");
+            }
+
+            setupContactFormOnCurrentPage();
+            applyProtectedLinksState();
+            window.scrollTo(0, 0);
+            return true;
+        } catch (error) {
+            mainContent.innerHTML = "<p>Error al cargar la pagina.</p>";
+            console.error(error);
+            return false;
+        }
+    }
+
+    async function navigateTo(page, options = {}) {
+        const pageName = resolvePage(page);
+        if (!options.skipGuard && !protectRoutes(pageName)) return;
+        const ok = await loadPage(pageName, options);
+        if (!ok) return;
+        if (options.replaceHistory) {
+            window.history.replaceState({ page: pageName }, "", pageName === "home" ? "#" : `#${pageName}`);
+        } else if (!options.fromPopState) {
+            window.history.pushState({ page: pageName }, "", pageName === "home" ? "#" : `#${pageName}`);
+        }
+    }
+
+    function extractPageFromLink(link) {
+        if (!link) return null;
+        const explicit = link.getAttribute("data-page");
+        if (explicit) return resolvePage(explicit);
+        const href = link.getAttribute("href");
+        if (!href || href === "#" || href.startsWith("http")) return null;
+        if (href.startsWith("#")) return resolvePage(href.slice(1));
+        return null;
+    }
+
+    function setupContactFormOnCurrentPage() {
+        const contactForm = document.getElementById("contact-form");
+        if (!contactForm || contactForm.dataset.bound === "true") return;
+
+        contactForm.dataset.bound = "true";
+        contactForm.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const submitBtn = contactForm.querySelector("button[type='submit']");
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Enviando...";
+            showMessage("Cargando...", "info", 0);
+            try {
+                const fd = new FormData(contactForm);
+                await submitContacto(fd);
+                contactForm.reset();
+                showMessage("Mensaje enviado correctamente. Gracias por contactarnos.", "success");
+            } catch (error) {
+                showMessage(error.message || "No se pudo enviar el mensaje.", "error");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = "Enviar Mensaje";
+            }
+        });
     }
 
     // Rifa: la entrada visual la controla rifa.js (splash + transición 1.5s al terminar la carga).
@@ -57,17 +469,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function liberarRifaSplashConError(textoPlano) {
-        const app = document.querySelector('#rifa-app');
+        const app = document.querySelector("#rifa-app");
         if (app) {
-            app.classList.remove('rifa-booting');
-            app.classList.add('rifa-ready', 'rifa-init-error');
+            app.classList.remove("rifa-booting");
+            app.classList.add("rifa-ready", "rifa-init-error");
         }
-        const splash = document.getElementById('rifa-splash');
+        const splash = document.getElementById("rifa-splash");
         if (splash) {
-            splash.setAttribute('aria-busy', 'false');
+            splash.setAttribute("aria-busy", "false");
             splash.replaceChildren();
-            const p = document.createElement('p');
-            p.className = 'rifa-splash-error-text';
+            const p = document.createElement("p");
+            p.className = "rifa-splash-error-text";
             p.textContent = textoPlano;
             splash.appendChild(p);
         }
@@ -76,40 +488,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Cargar el script de rifa dinámicamente
     function loadRifaScript() {
         return new Promise((resolve) => {
-            // Remover script anterior si existe
-            const oldScript = document.getElementById('rifa-script');
+            const oldScript = document.getElementById("rifa-script");
             if (oldScript) oldScript.remove();
 
-            // Crear y cargar el nuevo script
-            const script = document.createElement('script');
-            script.id = 'rifa-script';
-            script.src = 'assets/rifa.js';  // rifa.js sigue en assets/
+            const script = document.createElement("script");
+            script.id = "rifa-script";
+            script.src = "assets/rifa.js";
             script.onload = () => {
-                // El IIFE ya no arranca solo: aquí invocamos init tras definirse el módulo.
-                if (typeof window.initRifaApp === 'function') {
+                if (typeof window.initRifaApp === "function") {
                     window.initRifaApp();
                 } else {
-                    console.error('initRifaApp no está definida en rifa.js');
+                    console.error("initRifaApp no esta definida en rifa.js");
                     liberarRifaSplashConError(
-                        'No se pudo inicializar la rifa (initRifaApp). Revisa la consola (F12).'
+                        "No se pudo inicializar la rifa (initRifaApp). Revisa la consola (F12)."
                     );
-                    const el = document.querySelector('#rifa-app #loading-indicator');
+                    const el = document.querySelector("#rifa-app #loading-indicator");
                     if (el) {
                         el.innerHTML =
-                            '<p class="error-message">No se pudo inicializar la rifa (initRifaApp). Revisa la consola.</p>';
+                            "<p class='error-message'>No se pudo inicializar la rifa (initRifaApp). Revisa la consola.</p>";
                     }
                 }
                 resolve();
             };
             script.onerror = () => {
-                console.error('Error cargando rifa.js');
+                console.error("Error cargando rifa.js");
                 liberarRifaSplashConError(
-                    'No se pudo cargar assets/rifa.js. Revisa la ruta del sitio y la consola (F12).'
+                    "No se pudo cargar assets/rifa.js. Revisa la ruta del sitio y la consola (F12)."
                 );
-                const el = document.querySelector('#rifa-app #loading-indicator');
+                const el = document.querySelector("#rifa-app #loading-indicator");
                 if (el) {
                     el.innerHTML =
-                        '<p class="error-message">No se pudo cargar <code>assets/rifa.js</code>. Revisa la ruta del sitio y la consola (F12).</p>';
+                        "<p class='error-message'>No se pudo cargar assets/rifa.js. Revisa la ruta del sitio y la consola (F12).</p>";
                 }
                 resolve();
             };
@@ -117,45 +526,105 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Manejar clicks en los links de navegación
-    navLinks.forEach(link => {
-        link.addEventListener('click', (e) => {
-            const href = link.getAttribute('href');
-            
-            // Ignorar links externos o sin href
-            if (!href || href.startsWith('http') || href === '#') {
-                e.preventDefault();
-                return;
-            }
-
-            e.preventDefault();
-            
-            // Extraer el nombre de la página del href o data-app
-            let page = link.getAttribute('data-app') || href.substring(1);
-            
-            // Si es un link directo, usar el texto del link
-            if (!page || page === 'soluciones' || page === 'trayectoria') {
-                page = href.substring(1);
-            }
-
-            // Cerrar menú desplegable si está abierto
-            dropdownMenu.classList.remove('show');
-
-            // Cargar la página
-            loadPage(page);
-
-            // Actualizar la URL sin recargar
-            window.history.pushState({ page }, '', `#${page}`);
-        });
+    dropdownBtn.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (webappsNavItem && webappsNavItem.hidden) {
+            showMessage("Inicia sesion para habilitar WebApps.", "error");
+            openAuthModal("login");
+            return;
+        }
+        dropdownMenu.classList.toggle("show");
     });
 
-    // Manejar navegación hacia atrás/adelante
-    window.addEventListener('popstate', (e) => {
-        const page = e.state?.page || 'home';
-        loadPage(page);
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".dropdown")) {
+            dropdownMenu.classList.remove("show");
+        }
     });
 
-    // Cargar página inicial basada en la URL
-    const initialPage = window.location.hash.substring(1) || 'home';
-    loadPage(initialPage);
+    homeLink.addEventListener("click", (event) => {
+        event.preventDefault();
+        navigateTo("home");
+    });
+
+    document.addEventListener("click", (event) => {
+        const link = event.target.closest("a");
+        if (!link) return;
+        const page = extractPageFromLink(link);
+        if (!page) return;
+        event.preventDefault();
+        dropdownMenu.classList.remove("show");
+        navigateTo(page);
+    });
+
+    btnLoginOpen.addEventListener("click", () => openAuthModal("login"));
+    btnRegisterOpen.addEventListener("click", () => openAuthModal("register"));
+    btnLogout.addEventListener("click", () => {
+        clearSession();
+        updateNavigationBySession();
+        showMessage("Sesion cerrada correctamente.", "success");
+        if (!PUBLIC_PAGES.has(currentPage)) {
+            navigateTo("home");
+        } else {
+            applyProtectedLinksState();
+        }
+    });
+
+    loginTab.addEventListener("click", () => switchAuthTab("login"));
+    registerTab.addEventListener("click", () => switchAuthTab("register"));
+    authModalClose.addEventListener("click", closeAuthModal);
+    authBackdrop.addEventListener("click", closeAuthModal);
+
+    loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const submitBtn = loginForm.querySelector("button[type='submit']");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Validando...";
+        showMessage("Cargando...", "info", 0);
+        try {
+            const result = await submitLogin(new FormData(loginForm));
+            const session = setSession(result?.data || result);
+            updateNavigationBySession();
+            closeAuthModal();
+            loginForm.reset();
+            showMessage(`Bienvenido, ${session.username || session.email || "Usuario"}.`, "success");
+        } catch (error) {
+            showMessage(error.message || "No se pudo iniciar sesion.", "error");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Iniciar Sesion";
+        }
+    });
+
+    registerForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const submitBtn = registerForm.querySelector("button[type='submit']");
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Registrando...";
+        showMessage("Cargando...", "info", 0);
+        try {
+            await submitRegistro(new FormData(registerForm));
+            registerForm.reset();
+            switchAuthTab("login");
+            showMessage("Registro exitoso. Ahora puedes iniciar sesion.", "success");
+        } catch (error) {
+            showMessage(error.message || "No se pudo completar el registro.", "error");
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Crear Cuenta";
+        }
+    });
+
+    window.addEventListener("popstate", (event) => {
+        const page = resolvePage(event.state?.page || window.location.hash.slice(1) || "home");
+        if (!protectRoutes(page)) return;
+        navigateTo(page, { fromPopState: true });
+    });
+
+    setupRealtimeRegisterValidation();
+    updateNavigationBySession();
+    const initialPage = resolvePage(window.location.hash.slice(1) || "home");
+    if (protectRoutes(initialPage)) {
+        navigateTo(initialPage, { replaceHistory: true });
+    }
 });

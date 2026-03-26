@@ -17,16 +17,21 @@
                 <img src="imagenes/Extracción Logo.png" alt="Chino PC Master Logo" class="logo-img">
             </a>
             <ul class="nav-links">
-                <li><a href="#">Soluciones</a></li>
-                <li><a href="#">Trayectoria</a></li>
-                <li class="dropdown">
-                    <button class="dropdown-btn">WebApps</button>
+                <li><a href="#soluciones" data-page="soluciones">Soluciones</a></li>
+                <li><a href="#trayectoria" data-page="trayectoria">Trayectoria</a></li>
+                <li class="dropdown" id="webapps-nav-item" hidden>
+                    <button class="dropdown-btn" id="webapps-menu-btn" disabled aria-disabled="true">WebApps</button>
                     <div class="dropdown-menu">
-                        <a href="#rifa" class="dropdown-item">Rifa</a>
-                        <a href="#" class="dropdown-item">Certificados</a>
+                        <a href="#rifa" class="dropdown-item" data-page="rifa" data-requires-permission="rifa" hidden>Rifa</a>
+                        <a href="#certificados" class="dropdown-item" data-page="certificados" data-requires-permission="certificados" hidden>Certificados</a>
+                        <a href="#admin" class="dropdown-item" data-page="admin" data-requires-admin="true" hidden>Panel Admin</a>
                     </div>
                 </li>
-                <li><a href="#contacto" class="btn-contacto">Contacto</a></li>
+                <li><a href="#contacto" data-page="contacto" class="btn-contacto">Contacto</a></li>
+                <li class="auth-nav-item"><span id="auth-greeting" class="auth-greeting" hidden></span></li>
+                <li class="auth-nav-item"><button id="btn-login-open" class="btn-auth">Login</button></li>
+                <li class="auth-nav-item"><button id="btn-register-open" class="btn-auth">Registro</button></li>
+                <li class="auth-nav-item"><button id="btn-logout" class="btn-auth" hidden>Cerrar Sesion</button></li>
             </ul>
         </nav>
     </header>
@@ -40,6 +45,60 @@
     <footer>
         <p class="tech-font">© 2026 CHINO PC MASTER // ESTADO: OPERATIVO</p>
     </footer>
+
+    <div id="auth-message" class="auth-message" aria-live="polite"></div>
+
+    <div id="auth-modal" class="auth-modal" hidden>
+        <div id="auth-backdrop" class="auth-modal-backdrop"></div>
+        <div class="auth-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+            <div class="auth-modal-head">
+                <h3 id="auth-modal-title">Autenticacion</h3>
+                <button id="auth-modal-close" class="auth-modal-close" type="button" aria-label="Cerrar">
+                    ×
+                </button>
+            </div>
+            <div class="auth-modal-tabs" role="tablist" aria-label="Login y Registro">
+                <button id="tab-login" class="auth-tab active" role="tab" aria-selected="true" type="button">Login</button>
+                <button id="tab-register" class="auth-tab" role="tab" aria-selected="false" type="button">Registro</button>
+            </div>
+
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-identificador">Identificador (Username o Email)</label>
+                    <input id="login-identificador" name="identificador" type="text" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Contrasena</label>
+                    <input id="login-password" name="password" type="password" required autocomplete="current-password">
+                </div>
+                <button class="btn-submit" type="submit">Iniciar Sesion</button>
+            </form>
+
+            <form id="register-form" class="auth-form" hidden>
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input id="register-username" name="username" type="text" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email</label>
+                    <input id="register-email" name="email" type="email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="register-email-confirm">Confirmar Email</label>
+                    <input id="register-email-confirm" name="emailConfirm" type="email" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Contrasena</label>
+                    <input id="register-password" name="password" type="password" required autocomplete="new-password">
+                </div>
+                <div class="form-group">
+                    <label for="register-password-confirm">Confirmar Contrasena</label>
+                    <input id="register-password-confirm" name="passwordConfirm" type="password" required autocomplete="new-password">
+                </div>
+                <button class="btn-submit" type="submit">Crear Cuenta</button>
+            </form>
+        </div>
+    </div>
 
     <script src="assets/app.js"></script>
 
