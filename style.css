@@ -63,10 +63,17 @@ h1, h2, h3 {
 .tech-font { font-family: 'Roboto Mono', monospace; }
 
 /* NAVEGACIÓN */
+.site-header {
+    position: relative;
+    z-index: 1000;
+}
+
 .navbar {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
+    gap: 12px;
+    width: 100%;
     padding: 20px 5%;
     background-color: var(--black);
     border-bottom: 2px solid var(--cobalt-blue);
@@ -75,10 +82,55 @@ h1, h2, h3 {
     z-index: 1000;
 }
 
+.nav-links--desktop {
+    grid-column: 2;
+    justify-self: center;
+}
+
+.nav-end {
+    grid-column: 3;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
 /* RESPONSIVE - Navbar */
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
     .navbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 8px;
         padding: 15px 4%;
+    }
+
+    .nav-links--desktop {
+        display: none !important;
+    }
+
+    .nav-end {
+        grid-column: unset;
+        justify-self: unset;
+        margin-left: auto;
+        flex: 0 1 auto;
+        min-width: 0;
+        gap: 6px;
+    }
+
+    .nav-logo {
+        grid-column: unset;
+        justify-self: unset;
+        flex-shrink: 0;
+    }
+
+    .auth-greeting {
+        max-width: min(100px, 22vw);
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 
@@ -92,11 +144,14 @@ h1, h2, h3 {
 
 /* LOGO EN NAVBAR */
 .nav-logo {
+    grid-column: 1;
+    justify-self: start;
     display: flex;
     align-items: center;
     justify-content: center;
     text-decoration: none;
     cursor: pointer;
+    min-width: 0;
 }
 
 .logo-img {
@@ -488,6 +543,200 @@ h1, h2, h3 {
     color: var(--text-body);
     font-size: 0.85rem;
     white-space: nowrap;
+}
+
+/* Botón hamburguesa: solo móvil */
+.nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
+    border: 1px solid rgba(0, 255, 255, 0.45);
+    border-radius: 10px;
+    background: var(--dark-gray);
+    color: var(--white);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.nav-toggle:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+}
+
+.nav-toggle:focus-visible {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 2px;
+}
+
+.nav-toggle__icon {
+    font-size: 1.35rem;
+    line-height: 1;
+}
+
+@media screen and (max-width: 768px) {
+    .nav-toggle {
+        display: inline-flex;
+    }
+}
+
+/* Overlay + sidebar móvil (slide-in desde la derecha) */
+.nav-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 11000;
+    background: rgba(0, 0, 0, 0.6);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+    pointer-events: none;
+}
+
+body.nav-active .nav-overlay {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+body.nav-active {
+    overflow: hidden;
+}
+
+.mobile-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 11001;
+    width: min(320px, 88vw);
+    height: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--black);
+    border-left: 2px solid var(--cobalt-blue);
+    box-shadow: -12px 0 36px rgba(0, 0, 0, 0.5);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+body.nav-active .mobile-sidebar {
+    transform: translateX(0);
+}
+
+.mobile-sidebar__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 18px 18px 12px;
+    border-bottom: 1px solid rgba(0, 71, 171, 0.65);
+}
+
+.mobile-sidebar__title {
+    font-family: "Orbitron", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-heading);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.mobile-sidebar__close {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid var(--cobalt-blue);
+    background: transparent;
+    color: var(--white);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mobile-sidebar__close:hover {
+    border-color: var(--neon-cyan);
+    color: var(--neon-cyan);
+}
+
+.mobile-sidebar__nav {
+    padding: 12px 0 24px;
+}
+
+.mobile-sidebar__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mobile-sidebar__list > li {
+    margin: 0;
+    padding: 0;
+}
+
+.mobile-sidebar__link {
+    display: block;
+    padding: 14px 22px;
+    color: var(--white);
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(0, 71, 171, 0.35);
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.mobile-sidebar__link:hover,
+.mobile-sidebar__link:focus-visible {
+    background: var(--dark-gray);
+    color: var(--neon-cyan);
+    outline: none;
+}
+
+.mobile-sidebar__link--cta {
+    margin: 8px 16px 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 255, 255, 0.35);
+    background: var(--cobalt-blue);
+    text-align: center;
+}
+
+.mobile-sidebar__link--cta:hover {
+    background: var(--neon-cyan);
+    color: var(--dark-gray);
+}
+
+.mobile-sidebar__block {
+    padding-top: 8px;
+}
+
+.mobile-sidebar__label {
+    display: block;
+    padding: 12px 22px 6px;
+    font-size: 0.7rem;
+    font-family: "Roboto Mono", monospace;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.mobile-sidebar__sublist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mobile-sidebar__sublist .mobile-sidebar__link {
+    padding-left: 28px;
+    font-weight: 500;
+    font-size: 0.9rem;
 }
 
 .auth-message {
@@ -1907,4 +2156,90 @@ footer .tech-font {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* --------------------------------------------------------------------------
+   RWD general (mobile-first complemento): sin tocar lógica interna de rifa
+   -------------------------------------------------------------------------- */
+main {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+#main-content {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+@media screen and (max-width: 768px) {
+    .cards-container {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    section.content-section,
+    .content-section {
+        padding: 56px 5%;
+    }
+
+    .section-title {
+        margin-bottom: 28px;
+        font-size: 1.65rem;
+        word-break: break-word;
+    }
+
+    .glitch-text {
+        font-size: clamp(1.35rem, 6.5vw, 2rem);
+        letter-spacing: 0.12em;
+        padding: 0 8px;
+    }
+
+    .subtitle {
+        font-size: 0.88rem;
+        padding: 0 12px;
+    }
+
+    .hero {
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: 16px 4%;
+    }
+
+    .contact-container {
+        max-width: 100%;
+    }
+
+    .contact-form {
+        padding: 24px 18px;
+    }
+
+    .auth-message {
+        right: 12px;
+        left: 12px;
+        bottom: 12px;
+        max-width: none;
+        min-width: 0;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    section.content-section,
+    .content-section {
+        padding: 40px 4%;
+    }
+
+    .section-title {
+        font-size: 1.4rem;
+        margin-bottom: 22px;
+    }
+
+    .card {
+        padding: 22px 18px;
+    }
+
+    .glitch-text {
+        letter-spacing: 0.08em;
+    }
 }
