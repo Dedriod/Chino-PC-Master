@@ -7,13 +7,23 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="style.css?v=4">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
     <header class="site-header">
         <nav class="navbar" aria-label="Navegación principal">
-            <a href="#" class="nav-logo" id="home-link">
+            <button
+                type="button"
+                class="nav-toggle"
+                id="hamburger-menu"
+                aria-expanded="false"
+                aria-controls="mobile-sidebar"
+                aria-label="Abrir menú de navegación"
+            >
+                <span class="nav-toggle__icon" aria-hidden="true">☰</span>
+            </button>
+            <a href="#" class="nav-logo nav-logo--bar" id="home-link">
                 <img src="imagenes/Extracción Logo.png" alt="Chino PC Master Logo" class="logo-img">
             </a>
             <ul class="nav-links nav-links--desktop">
@@ -36,16 +46,6 @@
                     <button type="button" id="btn-register-open" class="btn-auth btn-auth--register">Registro</button>
                 </div>
                 <button type="button" id="btn-logout" class="btn-auth btn-auth--logout" hidden>Cerrar sesión</button>
-                <button
-                    type="button"
-                    class="nav-toggle"
-                    id="nav-toggle"
-                    aria-expanded="false"
-                    aria-controls="mobile-sidebar"
-                    aria-label="Abrir menú de navegación"
-                >
-                    <span class="nav-toggle__icon" aria-hidden="true">☰</span>
-                </button>
             </div>
         </nav>
 
@@ -56,23 +56,33 @@
             aria-hidden="true"
             aria-label="Menú de navegación"
         >
-            <div class="mobile-sidebar__head">
-                <span class="mobile-sidebar__title" id="mobile-sidebar-title">Menú</span>
+            <div class="mobile-sidebar__top">
                 <button type="button" class="mobile-sidebar__close" id="mobile-sidebar-close" aria-label="Cerrar menú">×</button>
+                <div class="mobile-sidebar__logo-wrap">
+                    <a href="#" class="mobile-sidebar__logo-link" id="sidebar-home-link" aria-label="Ir al inicio">
+                        <img
+                            src="imagenes/Extracción Logo.png"
+                            alt="Chino PC Master Logo"
+                            class="mobile-sidebar__logo-img"
+                            width="200"
+                            height="67"
+                        >
+                    </a>
+                </div>
             </div>
-            <nav class="mobile-sidebar__nav" aria-labelledby="mobile-sidebar-title">
-                <ul class="mobile-sidebar__list">
+            <nav class="mobile-sidebar__nav" aria-label="Navegación principal">
+                <div id="mobile-webapps-block" class="mobile-sidebar__block" hidden>
+                    <span class="mobile-sidebar__label">WebApps</span>
+                    <ul class="mobile-sidebar__sublist">
+                        <li><a href="#rifa" class="mobile-sidebar__link" data-page="rifa" data-requires-permission="rifa" hidden>Rifa</a></li>
+                        <li><a href="#certificados" class="mobile-sidebar__link" data-page="certificados" data-requires-permission="certificados" hidden>Certificados</a></li>
+                        <li><a href="#admin" class="mobile-sidebar__link" data-page="admin" data-requires-admin="true" hidden>Panel Admin</a></li>
+                    </ul>
+                </div>
+                <ul class="mobile-sidebar__list mobile-sidebar__list--bottom">
                     <li><a href="#soluciones" data-page="soluciones" class="mobile-sidebar__link">Soluciones</a></li>
                     <li><a href="#trayectoria" data-page="trayectoria" class="mobile-sidebar__link">Trayectoria</a></li>
                     <li><a href="#contacto" data-page="contacto" class="mobile-sidebar__link mobile-sidebar__link--cta">Contacto</a></li>
-                    <li id="mobile-webapps-block" class="mobile-sidebar__block" hidden>
-                        <span class="mobile-sidebar__label">WebApps</span>
-                        <ul class="mobile-sidebar__sublist">
-                            <li><a href="#rifa" class="mobile-sidebar__link" data-page="rifa" data-requires-permission="rifa" hidden>Rifa</a></li>
-                            <li><a href="#certificados" class="mobile-sidebar__link" data-page="certificados" data-requires-permission="certificados" hidden>Certificados</a></li>
-                            <li><a href="#admin" class="mobile-sidebar__link" data-page="admin" data-requires-admin="true" hidden>Panel Admin</a></li>
-                        </ul>
-                    </li>
                 </ul>
             </nav>
         </aside>
@@ -142,7 +152,7 @@
         </div>
     </div>
 
-    <script src="assets/app.js?v=4"></script>
+    <script src="assets/app.js?v=6"></script>
 
 </body>
 </html>

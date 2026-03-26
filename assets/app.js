@@ -12,7 +12,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const dropdownBtn = document.getElementById("webapps-menu-btn");
     const dropdownMenu = document.getElementById("webapps-dropdown-menu");
     const webappsNavItem = document.getElementById("webapps-nav-item");
-    const navToggle = document.getElementById("nav-toggle");
+    const hamburgerMenu = document.getElementById("hamburger-menu");
+    const sidebarHomeLink = document.getElementById("sidebar-home-link");
     const mobileSidebar = document.getElementById("mobile-sidebar");
     const navOverlay = document.getElementById("nav-overlay");
     const mobileSidebarClose = document.getElementById("mobile-sidebar-close");
@@ -164,10 +165,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (session) {
             const usernameOrEmail = session.username || session.email || "Usuario";
             authGreeting.hidden = false;
-            authGreeting.textContent = `Bienvenido, ${usernameOrEmail}`;
+            authGreeting.textContent = usernameOrEmail;
+            authGreeting.title = usernameOrEmail;
         } else {
             authGreeting.hidden = true;
             authGreeting.textContent = "";
+            authGreeting.removeAttribute("title");
         }
 
         applyProtectedLinksState();
@@ -199,8 +202,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function closeMobileNav() {
         document.body.classList.remove("nav-active");
-        if (navToggle) {
-            navToggle.setAttribute("aria-expanded", "false");
+        if (hamburgerMenu) {
+            hamburgerMenu.setAttribute("aria-expanded", "false");
         }
         if (mobileSidebar) {
             mobileSidebar.setAttribute("aria-hidden", "true");
@@ -212,8 +215,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function openMobileNav() {
         document.body.classList.add("nav-active");
-        if (navToggle) {
-            navToggle.setAttribute("aria-expanded", "true");
+        if (hamburgerMenu) {
+            hamburgerMenu.setAttribute("aria-expanded", "true");
         }
         if (mobileSidebar) {
             mobileSidebar.setAttribute("aria-hidden", "false");
@@ -595,8 +598,15 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    if (navToggle) {
-        navToggle.addEventListener("click", () => toggleMobileNav());
+    if (hamburgerMenu) {
+        hamburgerMenu.addEventListener("click", () => toggleMobileNav());
+    }
+    if (sidebarHomeLink) {
+        sidebarHomeLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            closeMobileNav();
+            navigateTo("home");
+        });
     }
     if (mobileSidebarClose) {
         mobileSidebarClose.addEventListener("click", () => closeMobileNav());
@@ -607,7 +617,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && document.body.classList.contains("nav-active")) {
             closeMobileNav();
-            navToggle?.focus();
+            hamburgerMenu?.focus();
         }
     });
 

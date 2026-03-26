@@ -121,14 +121,13 @@ h1, h2, h3 {
         gap: 6px;
     }
 
-    .nav-logo {
-        grid-column: unset;
-        justify-self: unset;
-        flex-shrink: 0;
+    /* Logo principal de la barra: solo escritorio */
+    .nav-logo--bar {
+        display: none !important;
     }
 
     .auth-greeting {
-        max-width: min(100px, 22vw);
+        max-width: min(160px, 42vw);
         overflow: hidden;
         text-overflow: ellipsis;
     }
@@ -142,10 +141,13 @@ h1, h2, h3 {
 
 .nav-brand { color: var(--neon-cyan); font-weight: bold; letter-spacing: 2px; }
 
-/* LOGO EN NAVBAR */
-.nav-logo {
+/* LOGO EN NAVBAR (barra superior; en móvil se oculta y el logo vive en el sidebar) */
+.nav-logo--bar {
     grid-column: 1;
     justify-self: start;
+}
+
+.nav-logo {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -584,6 +586,22 @@ h1, h2, h3 {
     }
 }
 
+/* Escritorio: hamburguesa oculta, logo de barra visible, logo del panel lateral oculto */
+@media screen and (min-width: 769px) {
+    .nav-toggle#hamburger-menu,
+    #hamburger-menu.nav-toggle {
+        display: none !important;
+    }
+
+    .nav-logo--bar {
+        display: flex !important;
+    }
+
+    .mobile-sidebar__logo-wrap {
+        display: none !important;
+    }
+}
+
 /* Overlay + sidebar móvil (slide-in desde la derecha) */
 .nav-overlay {
     position: fixed;
@@ -609,7 +627,7 @@ body.nav-active {
 .mobile-sidebar {
     position: fixed;
     top: 0;
-    right: 0;
+    left: 0;
     z-index: 11001;
     width: min(320px, 88vw);
     height: 100%;
@@ -618,11 +636,11 @@ body.nav-active {
     display: flex;
     flex-direction: column;
     background: var(--black);
-    border-left: 2px solid var(--cobalt-blue);
-    box-shadow: -12px 0 36px rgba(0, 0, 0, 0.5);
-    transform: translateX(100%);
+    border-right: 2px solid var(--cobalt-blue);
+    box-shadow: 12px 0 36px rgba(0, 0, 0, 0.5);
+    transform: translateX(-100%);
     transition: transform 0.3s ease;
-    overflow-y: auto;
+    overflow: hidden;
     -webkit-overflow-scrolling: touch;
 }
 
@@ -630,25 +648,48 @@ body.nav-active .mobile-sidebar {
     transform: translateX(0);
 }
 
-.mobile-sidebar__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 18px 18px 12px;
+/* Cabecera del panel: logo amplio + cerrar (sin título "Menú") */
+.mobile-sidebar__top {
+    position: relative;
+    flex-shrink: 0;
+    padding: 20px 52px 16px 18px;
     border-bottom: 1px solid rgba(0, 71, 171, 0.65);
 }
 
-.mobile-sidebar__title {
-    font-family: "Orbitron", sans-serif;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-heading);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+/* Logo dentro del panel (solo móvil; oculto en escritorio) */
+.mobile-sidebar__logo-wrap {
+    display: none;
+    padding: 0;
+    text-align: center;
+    border-bottom: none;
+}
+
+@media screen and (max-width: 768px) {
+    .mobile-sidebar__logo-wrap {
+        display: block;
+    }
+}
+
+.mobile-sidebar__logo-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.mobile-sidebar__logo-img {
+    display: block;
+    height: 52px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.35));
 }
 
 .mobile-sidebar__close {
+    position: absolute;
+    top: 14px;
+    right: 12px;
     width: 40px;
     height: 40px;
     border-radius: 8px;
@@ -659,6 +700,7 @@ body.nav-active .mobile-sidebar {
     line-height: 1;
     cursor: pointer;
     flex-shrink: 0;
+    z-index: 1;
 }
 
 .mobile-sidebar__close:hover {
@@ -667,13 +709,25 @@ body.nav-active .mobile-sidebar {
 }
 
 .mobile-sidebar__nav {
-    padding: 12px 0 24px;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 .mobile-sidebar__list {
     list-style: none;
     margin: 0;
     padding: 0;
+}
+
+.mobile-sidebar__list--bottom {
+    margin-top: auto;
+    padding: 16px 0 calc(20px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(0, 71, 171, 0.35);
 }
 
 .mobile-sidebar__list > li {
@@ -701,6 +755,7 @@ body.nav-active .mobile-sidebar {
 
 .mobile-sidebar__link--cta {
     margin: 8px 16px 0;
+    margin-bottom: 4px;
     padding: 12px 16px;
     border-radius: 10px;
     border: 1px solid rgba(0, 255, 255, 0.35);
@@ -714,6 +769,7 @@ body.nav-active .mobile-sidebar {
 }
 
 .mobile-sidebar__block {
+    flex-shrink: 0;
     padding-top: 8px;
 }
 
