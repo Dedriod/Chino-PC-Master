@@ -314,6 +314,11 @@ h1, h2, h3 {
     align-items: center;
 }
 
+/* [hidden] debe prevalecer: .nav-links > li { display:flex } anulaba el oculto del ítem WebApps en escritorio */
+.nav-links > li[hidden] {
+    display: none !important;
+}
+
 .nav-links a { color: var(--white); text-decoration: none; transition: 0.3s; font-size: 0.9rem; }
 .nav-links a:hover { color: var(--neon-cyan); }
 
