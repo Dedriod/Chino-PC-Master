@@ -243,7 +243,20 @@ h1, h2, h3 {
     }
 }
 
-.nav-links { display: flex; list-style: none; gap: 20px; }
+.nav-links {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    gap: 20px;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-links > li {
+    display: flex;
+    align-items: center;
+}
+
 .nav-links a { color: var(--white); text-decoration: none; transition: 0.3s; font-size: 0.9rem; }
 .nav-links a:hover { color: var(--neon-cyan); }
 
@@ -382,20 +395,28 @@ h1, h2, h3 {
     align-items: center;
 }
 
-/* Botones auth: mismo lenguaje visual que Contacto; reset de estilos de <button> del navegador */
+/* Login + Registro pegados; misma línea base que enlaces del header */
+.auth-nav-pair {
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+}
+
+/* Botones auth: ~30% más compactos que la versión anterior; alineados con .btn-contacto */
 .btn-auth {
     -webkit-appearance: none;
     appearance: none;
     margin: 0;
-    padding: 10px 16px;
-    border-radius: 10px;
+    padding: 7px 11px;
+    border-radius: 7px;
     font-family: "Inter", sans-serif;
-    font-size: 0.9rem;
+    font-size: calc(0.9rem * 0.7);
     font-weight: 600;
     line-height: 1.2;
     white-space: nowrap;
     cursor: pointer;
     transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    vertical-align: middle;
 }
 
 .btn-auth:focus-visible {
@@ -443,15 +464,23 @@ h1, h2, h3 {
 
 @media (max-width: 768px) {
     .btn-auth {
-        padding: 8px 12px;
-        font-size: 0.8rem;
+        padding: 6px 9px;
+        font-size: calc(0.8rem * 0.7);
+    }
+
+    .auth-nav-pair {
+        gap: 3px;
     }
 }
 
 @media (max-width: 480px) {
     .btn-auth {
-        padding: 7px 10px;
-        font-size: 0.72rem;
+        padding: 5px 7px;
+        font-size: calc(0.72rem * 0.7);
+    }
+
+    .auth-nav-pair {
+        gap: 2px;
     }
 }
 
