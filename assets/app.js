@@ -467,13 +467,20 @@ document.addEventListener("DOMContentLoaded", () => {
             const content = await response.text();
             mainContent.innerHTML = content;
             currentPage = pageName;
-
+            
             if (pageName === "rifa") {
                 await handleRifaAnimation();
             } else if (pageName === "certificados") {
                 await loadCertificadosScript();
                 if (typeof window.initCertificadosAdminApp === "function") {
                     window.initCertificadosAdminApp({ showMessage, getSession });
+                }
+                const mainLogo = document.querySelector(".main-logo");
+                if (mainLogo) mainLogo.classList.remove("logo-animate-up");
+            } else if (pageName === "admin") {
+                await loadAdminUsersScript();
+                if (typeof window.initAdminUsersApp === "function") {
+                    window.initAdminUsersApp({ showMessage, getSession, callBackend });
                 }
                 const mainLogo = document.querySelector(".main-logo");
                 if (mainLogo) mainLogo.classList.remove("logo-animate-up");
@@ -596,6 +603,33 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    function loadAdminUsersScript() {
+        return new Promise((resolve) => {
+            if (typeof window.initAdminUsersApp === "function") {
+                resolve();
+                return;
+            }
+            let el = document.getElementById("admin-users-script");
+            if (!el) {
+                el = document.createElement("script");
+                el.id = "admin-users-script";
+                el.src = "assets/admin-users.js?v=2";
+                el.onerror = () => {
+                    console.error("Error cargando admin-users.js");
+                    resolve();
+                };
+                document.body.appendChild(el);
+            }
+            let ticks = 0;
+            const timer = window.setInterval(() => {
+                if (typeof window.initAdminUsersApp === "function" || ticks++ > 120) {
+                    window.clearInterval(timer);
+                    resolve();
+                }
+            }, 50);
+        });
+    }
+
     // Cargar el script de rifa dinámicamente
     function loadRifaScript() {
         return new Promise((resolve) => {
@@ -642,8 +676,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (webappsNavItem && webappsNavItem.hidden) {
             showMessage("Inicia sesion para habilitar WebApps.", "error");
             openAuthModal("login");
-            return;
-        }
+                return;
+            }
         dropdownMenu.classList.toggle("show");
         dropdownBtn.setAttribute("aria-expanded", String(dropdownMenu.classList.contains("show")));
     });

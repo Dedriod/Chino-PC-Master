@@ -1,11 +1,69 @@
-<section id="admin" class="content-section">
+<section id="admin" class="content-section admin-users-section">
     <h2 class="section-title">PANEL ADMIN</h2>
-    <div class="card">
-        <span class="card-tag tech-font">ACCESO ADMINISTRATIVO</span>
-        <h3>Panel de Gestion</h3>
-        <p>
-            Acceso habilitado para administradores. Esta area queda preparada para futuras funciones de
-            control, auditoria y configuracion avanzada.
-        </p>
+    <p class="admin-users-lead">
+        <span class="tech-font">ADMIN</span> — Gestión de usuarios registrados en la base
+        <strong>DB_Usuarios_ChinoPC</strong>.
+    </p>
+
+    <div class="admin-users-card">
+        <div class="admin-users-toolbar">
+            <div class="admin-users-toolbar-left">
+                <h3 class="admin-users-title">Usuarios</h3>
+                <p class="admin-users-hint">
+                    Puedes filtrar por ID, username, email o fecha de registro. Campos no editables: ID, Fecha y Username.
+                </p>
+            </div>
+            <button id="admin-users-btn-reload" class="btn btn-secondary admin-users-btn-reload" type="button">
+                Recargar
+            </button>
+        </div>
+
+        <div class="admin-users-filters" role="search">
+            <div class="form-group">
+                <label for="admin-filter-id">ID</label>
+                <input id="admin-filter-id" type="text" placeholder="Ej: 24">
+            </div>
+            <div class="form-group">
+                <label for="admin-filter-username">Username</label>
+                <input id="admin-filter-username" type="text" placeholder="Ej: luiscalvo">
+            </div>
+            <div class="form-group">
+                <label for="admin-filter-email">Email</label>
+                <input id="admin-filter-email" type="text" placeholder="Ej: correo@dominio.com">
+            </div>
+            <div class="form-group">
+                <label for="admin-filter-fecha">Fecha de registro</label>
+                <input id="admin-filter-fecha" type="date">
+            </div>
+        </div>
+
+        <div id="admin-users-loader" class="admin-users-loader" hidden>
+            <div class="cert-spinner" aria-hidden="true"></div>
+            <span>Cargando usuarios...</span>
+        </div>
+
+        <div class="admin-users-table-wrap">
+            <table class="admin-users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha Registro</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Password</th>
+                        <th>Es_Admin</th>
+                        <th>Permiso_Rifa</th>
+                        <th>Permiso_Cert</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-users-tbody">
+                    <tr>
+                        <td colspan="10" class="admin-users-empty">Cargando datos...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 </section>
