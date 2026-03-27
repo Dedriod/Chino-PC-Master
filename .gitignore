@@ -1,2 +1,8 @@
 /ChinoPCMasterWebSite.code-workspace
 /google-apps-script
+
+# Apps Script: el código vive en ChinoPCMasterAppScripts/fuentes-apps-script (local).
+/apps-script/
+
+# Clasp: si colocas la carpeta de Apps Script dentro de este repo, no se sube a GitHub.
+/ChinoPCMasterAppScripts/

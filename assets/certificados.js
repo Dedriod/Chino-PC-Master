@@ -2,10 +2,8 @@
  * Certificados: backend GAS dedicado + verificador público (Canje).
  * Expone initCertificadosAdminApp e initCanjePublicoApp; las invoca app.js tras cargar el fragmento HTML.
  *
- * Apps Script (doPost): aceptar JSON en postData.contents (text/plain o application/json) y/o
- * e.parameter.payload cuando Content-Type es application/x-www-form-urlencoded.
- * Devolver siempre: ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
- * Respuesta del servidor: { status, message, data } o { success, msg, id?, data? } (Code.gs).
+ * Backend: proyecto Apps Script en ChinoPCMasterAppScripts/fuentes-apps-script/certificados (clasp).
+ * doPost: JSON en postData.contents y/o e.parameter.payload (form). Respuesta JSON: success, msg, etc.
  */
 (function () {
     /* Opcional: en index.html define window.CPM_CERTIFICADOS_GAS_URL = "https://.../exec" antes de cargar la app. */
@@ -58,6 +56,18 @@
     function looksLikeHtmlResponse(text) {
         const t = String(text || "").trim();
         return t.startsWith("<!") || t.startsWith("<html") || t.startsWith("<HTML");
+    }
+
+    /** Misma secuencia que debe usar todo POST al Web App (evita preflight CORS con application/json). */
+    function certificadosFetchAttempts(rawPayload) {
+        return [
+            { headers: { "Content-Type": "text/plain" }, body: rawPayload },
+            {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ payload: rawPayload }).toString()
+            },
+            { headers: { "Content-Type": "application/json" }, body: rawPayload }
+        ];
     }
 
     async function postCertificados(payload) {
@@ -153,20 +163,7 @@
             signal: controller.signal
         };
 
-        /**
-         * Orden pensado para Google Apps Script desde sitios externos:
-         * 1) text/plain — suele evitar preflight CORS frente a application/json.
-         * 2) x-www-form-urlencoded + clave payload — petición «simple»; en GAS: JSON.parse(e.parameter.payload).
-         * 3) application/json — mismo patrón que el resto del sitio.
-         */
-        const attempts = [
-            { headers: { "Content-Type": "text/plain" }, body: rawPayload },
-            {
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({ payload: rawPayload }).toString()
-            },
-            { headers: { "Content-Type": "application/json" }, body: rawPayload }
-        ];
+        const attempts = certificadosFetchAttempts(rawPayload);
 
         let lastTypeError = null;
         try {
@@ -207,36 +204,88 @@
         }
     }
 
-    /** POST con timeout mayor (PDF base64) */
+    /**
+     * POST con timeout mayor (PDF base64 / email).
+     * Importante: NO usar solo application/json — dispara preflight CORS y el Web App de Apps Script suele fallar con «TypeError: Failed to fetch».
+     * Misma secuencia que postCertificados: text/plain → form payload → json.
+     */
     async function postCertificadosLarge(payload, timeoutMs = 90000) {
         const url = certificadosGasUrl();
         const controller = new AbortController();
         const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
         const rawPayload = JSON.stringify(payload);
-        try {
-            const response = await fetch(url, {
-                method: "POST",
-                mode: "cors",
-                credentials: "omit",
-                cache: "no-store",
-                redirect: "follow",
-                headers: { "Content-Type": "application/json" },
-                body: rawPayload,
-                signal: controller.signal
-            });
+        const baseInit = {
+            method: "POST",
+            mode: "cors",
+            credentials: "omit",
+            cache: "no-store",
+            redirect: "follow",
+            signal: controller.signal
+        };
+        const attempts = certificadosFetchAttempts(rawPayload);
+
+        async function parseLargeResponse(response) {
             const rawText = await response.text();
             const trimmed = rawText.trim();
-            if (looksLikeHtmlResponse(trimmed)) {
-                throw new Error("Respuesta HTML inesperada al descargar PDF.");
+            if (!trimmed) {
+                throw new Error("El servidor devolvió una respuesta vacía.");
             }
-            const result = JSON.parse(trimmed);
+            if (looksLikeHtmlResponse(trimmed)) {
+                throw new Error(
+                    "El Web App respondió con HTML en lugar de JSON. Revisa la implementación y que doPost devuelva JSON."
+                );
+            }
+            let result;
+            try {
+                result = JSON.parse(trimmed);
+            } catch {
+                throw new Error(
+                    "No se pudo leer la respuesta (JSON inválido o respuesta cortada). Si el PDF es muy grande, prueba de nuevo."
+                );
+            }
             if (!response.ok) {
                 throw new Error(result?.message || result?.msg || `Error HTTP ${response.status}`);
             }
             if (typeof result.success === "boolean" && !result.success) {
-                throw new Error(result.msg || result.message || "Error");
+                throw new Error(result.msg || result.message || "El servidor rechazó la operación.");
             }
             return result;
+        }
+
+        let lastTypeError = null;
+        try {
+            for (let i = 0; i < attempts.length; i += 1) {
+                try {
+                    const response = await fetch(url, {
+                        ...baseInit,
+                        headers: attempts[i].headers,
+                        body: attempts[i].body
+                    });
+                    return await parseLargeResponse(response);
+                } catch (err) {
+                    if (err?.name === "AbortError") {
+                        throw new Error(
+                            "Tiempo de espera agotado. Si el PDF es pesado, espera un momento e inténtalo de nuevo."
+                        );
+                    }
+                    if (err instanceof TypeError) {
+                        lastTypeError = err;
+                        continue;
+                    }
+                    throw err;
+                }
+            }
+            throw lastTypeError || new Error("fetch falló");
+        } catch (error) {
+            if (error?.name === "AbortError") {
+                throw new Error("Tiempo de espera agotado con el servidor de certificados.");
+            }
+            if (error instanceof TypeError) {
+                throw new Error(
+                    "No se pudo contactar al Web App (CORS o red). Comprueba la URL /exec y el acceso «Cualquiera» en la implementación."
+                );
+            }
+            throw error;
         } finally {
             window.clearTimeout(timeoutId);
         }

@@ -579,7 +579,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!el) {
                 el = document.createElement("script");
                 el.id = "certificados-script";
-                el.src = "assets/certificados.js?v=7";
+                el.src = "assets/certificados.js?v=8";
                 el.onerror = () => {
                     console.error("Error cargando certificados.js");
                     resolve();
