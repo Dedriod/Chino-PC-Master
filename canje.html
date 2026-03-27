@@ -1,0 +1,40 @@
+<section id="canje" class="content-section canje-public-section" aria-label="Verificador público de certificados">
+    <h2 class="section-title">CANJE</h2>
+    <p class="canje-public-lead">Verificación pública de certificados. Introduce el código <span class="tech-font">CPM-XXXXXX</span>.</p>
+
+    <div class="canje-public-card cert-glass canje-glass">
+        <div id="canje-public-loader" class="cert-loading cert-loading--inline" hidden aria-live="polite">
+            <span class="cert-spinner" aria-hidden="true"></span>
+            <span class="cert-loading-text">Verificando con el servidor…</span>
+        </div>
+
+        <div class="form-group canje-public-field">
+            <label for="canje-public-codigo">Código del certificado</label>
+            <input type="text" id="canje-public-codigo" class="tech-font canje-public-input" name="codigo" inputmode="text" autocomplete="off" placeholder="CPM-XXXXXX">
+        </div>
+        <button type="button" class="btn-submit cert-btn-primary canje-public-btn" id="canje-btn-verificar">Verificar</button>
+
+        <div id="canje-result-valid" class="canje-sello-valid" hidden>
+            <div class="canje-sello-valid__ring" aria-hidden="true"></div>
+            <h3 class="canje-sello-valid__title">Sello digital</h3>
+            <p class="canje-sello-valid__sub">Certificado verificado</p>
+            <dl class="canje-sello-dl">
+                <dt>ID</dt>
+                <dd class="tech-font" id="canje-valid-id">—</dd>
+                <dt>Cliente</dt>
+                <dd id="canje-valid-cliente">—</dd>
+                <dt>Servicio</dt>
+                <dd id="canje-valid-servicio">—</dd>
+                <dt>Vence</dt>
+                <dd id="canje-valid-exp">—</dd>
+                <dt>Estado</dt>
+                <dd id="canje-valid-estado">—</dd>
+            </dl>
+        </div>
+
+        <div id="canje-result-invalid" class="canje-alert-invalid" hidden role="alert">
+            <strong class="canje-alert-invalid__title">No verificado</strong>
+            <p class="canje-alert-invalid__msg" id="canje-invalid-msg">Código no válido o expirado.</p>
+        </div>
+    </div>
+</section>

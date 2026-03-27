@@ -7,7 +7,7 @@
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Orbitron:wght@700&family=Roboto+Mono&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=11">
 </head>
 <body>
 
@@ -29,11 +29,12 @@
             <ul class="nav-links nav-links--desktop">
                 <li><a href="#soluciones" data-page="soluciones">Soluciones</a></li>
                 <li><a href="#trayectoria" data-page="trayectoria">Trayectoria</a></li>
+                <li><a href="#canje" data-page="canje">Canje</a></li>
                 <li class="dropdown" id="webapps-nav-item" hidden>
                     <button type="button" class="dropdown-btn" id="webapps-menu-btn" aria-expanded="false" aria-haspopup="true" aria-controls="webapps-dropdown-menu">WebApps</button>
                     <div id="webapps-dropdown-menu" class="dropdown-menu" role="menu">
                         <a href="#rifa" class="dropdown-item" data-page="rifa" data-requires-permission="rifa" role="menuitem" hidden>Rifa</a>
-                        <a href="#certificados" class="dropdown-item" data-page="certificados" data-requires-permission="certificados" role="menuitem" hidden>Certificados</a>
+                        <a href="#certificados" class="dropdown-item" data-page="certificados" data-requires-admin="true" role="menuitem" hidden>Certificados</a>
                         <a href="#admin" class="dropdown-item" data-page="admin" data-requires-admin="true" role="menuitem" hidden>Panel Admin</a>
                     </div>
                 </li>
@@ -75,13 +76,14 @@
                     <span class="mobile-sidebar__label">WebApps</span>
                     <ul class="mobile-sidebar__sublist">
                         <li><a href="#rifa" class="mobile-sidebar__link" data-page="rifa" data-requires-permission="rifa" hidden>Rifa</a></li>
-                        <li><a href="#certificados" class="mobile-sidebar__link" data-page="certificados" data-requires-permission="certificados" hidden>Certificados</a></li>
+                        <li><a href="#certificados" class="mobile-sidebar__link" data-page="certificados" data-requires-admin="true" hidden>Certificados</a></li>
                         <li><a href="#admin" class="mobile-sidebar__link" data-page="admin" data-requires-admin="true" hidden>Panel Admin</a></li>
                     </ul>
                 </div>
                 <ul class="mobile-sidebar__list mobile-sidebar__list--bottom">
                     <li><a href="#soluciones" data-page="soluciones" class="mobile-sidebar__link">Soluciones</a></li>
                     <li><a href="#trayectoria" data-page="trayectoria" class="mobile-sidebar__link">Trayectoria</a></li>
+                    <li><a href="#canje" data-page="canje" class="mobile-sidebar__link">Canje</a></li>
                     <li><a href="#contacto" data-page="contacto" class="mobile-sidebar__link mobile-sidebar__link--cta">Contacto</a></li>
                 </ul>
             </nav>
@@ -152,7 +154,7 @@
         </div>
     </div>
 
-    <script src="assets/app.js?v=6"></script>
+    <script src="assets/app.js?v=14"></script>
 
 </body>
 </html>

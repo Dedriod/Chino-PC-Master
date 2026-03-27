@@ -1,11 +1,106 @@
-<section id="certificados" class="content-section">
+<section id="certificados" class="content-section certificados-admin-section">
     <h2 class="section-title">CERTIFICADOS</h2>
-    <div class="card">
-        <span class="card-tag tech-font">WEBAPP PROTEGIDA</span>
-        <h3>Modulo de Certificados</h3>
-        <p>
-            Tu cuenta tiene permisos para acceder a esta seccion. Aqui podras gestionar y consultar
-            certificados cuando se habilite el flujo definitivo.
-        </p>
+    <p class="certificados-admin-lead">
+        <span class="tech-font">ADMIN</span> — Generación y canje de códigos. Requiere sesión de administrador.
+    </p>
+
+    <div class="cert-admin" data-cert-admin>
+        <input type="radio" name="cert-tab" id="cert-tab-gen" class="cert-tab-state" checked>
+        <input type="radio" name="cert-tab" id="cert-tab-can" class="cert-tab-state">
+
+        <div class="cert-tab-bar" role="tablist" aria-label="Secciones de certificados">
+            <label for="cert-tab-gen" class="cert-tab-btn" role="tab" id="cert-tab-label-gen" aria-controls="cert-panel-generador">Generador</label>
+            <label for="cert-tab-can" class="cert-tab-btn" role="tab" id="cert-tab-label-can" aria-controls="cert-panel-canjeador">Canjeador</label>
+        </div>
+
+        <div id="cert-panel-generador" class="cert-panel cert-panel--gen" role="tabpanel" aria-labelledby="cert-tab-label-gen">
+            <div class="cert-panel-inner cert-glass">
+                <h3 class="cert-panel-title">Emitir certificado</h3>
+                <p class="cert-panel-hint">Completa los datos y emite un código <span class="tech-font">CPM-XXXXXX</span>.</p>
+
+                <div id="cert-emit-loader" class="cert-loading cert-loading--inline" hidden aria-live="polite">
+                    <span class="cert-spinner" aria-hidden="true"></span>
+                    <span class="cert-loading-text">Cargando…</span>
+                </div>
+
+                <form id="cert-form-emitir" class="cert-form" novalidate>
+                    <div class="form-group">
+                        <label for="cert-cliente-nombre">Nombre del cliente</label>
+                        <input type="text" id="cert-cliente-nombre" name="nombreCliente" required autocomplete="name" placeholder="Nombre o razón social">
+                    </div>
+                    <div class="form-group">
+                        <label for="cert-servicio">Servicio</label>
+                        <input type="text" id="cert-servicio" name="servicio" required placeholder="Ej. Mantenimiento anual">
+                    </div>
+                    <div class="form-group">
+                        <label for="cert-fecha-exp">Fecha de expiración</label>
+                        <input type="date" id="cert-fecha-exp" name="fechaExp" required>
+                    </div>
+                    <button type="submit" class="btn-submit cert-btn-primary" id="cert-btn-emitir">Emitir</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="cert-panel-canjeador" class="cert-panel cert-panel--can" role="tabpanel" aria-labelledby="cert-tab-label-can">
+            <div class="cert-panel-inner cert-glass">
+                <h3 class="cert-panel-title">Canjeador administrativo</h3>
+                <p class="cert-panel-hint">Busca un código existente y confirma el canje en el sistema.</p>
+
+                <div id="cert-can-loader" class="cert-loading cert-loading--inline" hidden aria-live="polite">
+                    <span class="cert-spinner" aria-hidden="true"></span>
+                    <span class="cert-loading-text">Cargando…</span>
+                </div>
+
+                <div class="cert-search-row">
+                    <div class="form-group cert-search-field">
+                        <label for="cert-buscar-id">ID del certificado</label>
+                        <input type="text" id="cert-buscar-id" class="tech-font" name="certId" inputmode="text" autocomplete="off" placeholder="CPM-XXXXXX">
+                    </div>
+                    <button type="button" class="btn-submit cert-btn-secondary" id="cert-btn-buscar">Buscar</button>
+                </div>
+
+                <div id="cert-canje-result" class="cert-canje-card" hidden>
+                    <h4 class="cert-canje-card__title">Detalle</h4>
+                    <dl class="cert-canje-dl">
+                        <dt>ID</dt>
+                        <dd class="tech-font" id="cert-detail-id">—</dd>
+                        <dt>Cliente</dt>
+                        <dd id="cert-detail-cliente">—</dd>
+                        <dt>Servicio</dt>
+                        <dd id="cert-detail-servicio">—</dd>
+                        <dt>Expira</dt>
+                        <dd id="cert-detail-exp">—</dd>
+                        <dt>Estado</dt>
+                        <dd id="cert-detail-estado">—</dd>
+                    </dl>
+                    <button type="button" class="btn-submit cert-btn-accent" id="cert-btn-confirmar-canje">Confirmar canje</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cert-emitir-modal" class="cert-modal" hidden role="dialog" aria-modal="true" aria-labelledby="cert-emitir-modal-title">
+        <div class="cert-modal__backdrop" id="cert-emitir-modal-backdrop"></div>
+        <div class="cert-modal__dialog cert-modal__dialog--glow">
+            <h3 id="cert-emitir-modal-title" class="cert-modal__title">Certificado emitido</h3>
+            <p class="cert-modal__label tech-font">ID generado</p>
+            <p id="cert-modal-id-value" class="cert-modal__code tech-font" aria-live="polite">CPM-XXXXXX</p>
+            <p id="cert-modal-pdf-warning" class="cert-modal__pdf-warning" hidden role="alert"></p>
+            <div id="cert-modal-pdf-actions" class="cert-modal__pdf-block" hidden>
+                <p class="cert-modal__label tech-font">PDF en Google Drive</p>
+                <div class="cert-modal__actions cert-modal__actions--stack">
+                    <button type="button" class="btn-submit cert-btn-primary" id="cert-btn-descargar-pdf">Descargar PDF</button>
+                    <div class="cert-modal__email-row">
+                        <label class="cert-modal__email-label" for="cert-email-envio">Enviar por correo</label>
+                        <input type="email" id="cert-email-envio" class="cert-modal__email-input" placeholder="correo@ejemplo.com" autocomplete="email">
+                        <button type="button" class="btn-submit cert-btn-accent" id="cert-btn-enviar-pdf">Enviar</button>
+                    </div>
+                </div>
+            </div>
+            <div class="cert-modal__actions">
+                <button type="button" class="btn-submit cert-btn-copy" id="cert-btn-copiar-id">Copiar ID</button>
+                <button type="button" class="btn-submit cert-btn-secondary" id="cert-btn-cerrar-modal">Cerrar</button>
+            </div>
+        </div>
     </div>
 </section>

@@ -2,10 +2,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const BACKEND_WEB_APP_URL =
         "https://script.google.com/macros/s/AKfycbylYwlJaLInQ7dtEdhC40IOTGD8G3GqTL0yN343s5I5MOLSeTTdQAgN44A7ktEUPK3oHw/exec";
     const AUTH_STORAGE_KEY = "cpm_session";
-    const PUBLIC_PAGES = new Set(["home", "soluciones", "trayectoria", "contacto", "webapps"]);
+    const PUBLIC_PAGES = new Set(["home", "soluciones", "trayectoria", "contacto", "webapps", "canje"]);
     const PERMISSION_PAGES = {
-        rifa: "rifa",
-        certificados: "certificados"
+        rifa: "rifa"
     };
 
     const homeLink = document.getElementById("home-link");
@@ -74,13 +73,21 @@ document.addEventListener("DOMContentLoaded", () => {
             rifa: normalizeBoolean(permisosRaw.rifa),
             certificados: normalizeBoolean(permisosRaw.certificados)
         };
+        const role = String(source.role || rawData?.role || "").trim().toLowerCase();
 
         return {
             username: String(source.username || source.userName || source.usuario || "").trim(),
             email: String(source.email || source.correo || "").trim(),
             permisos,
+            role,
             isAdmin: normalizeBoolean(source.isAdmin ?? rawData?.isAdmin)
         };
+    }
+
+    function isAdminSession(session) {
+        if (!session) return false;
+        if (session.isAdmin) return true;
+        return session.role === "admin";
     }
 
     function getSession() {
@@ -108,7 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function canAccessPage(page, session) {
         if (PUBLIC_PAGES.has(page)) return true;
-        if (page === "admin") return Boolean(session && session.isAdmin);
+        if (page === "admin" || page === "certificados") {
+            return Boolean(session && isAdminSession(session));
+        }
         const requiredPermission = PERMISSION_PAGES[page];
         if (!requiredPermission) return true;
         return Boolean(session && session.permisos && session.permisos[requiredPermission] === true);
@@ -119,11 +128,19 @@ document.addEventListener("DOMContentLoaded", () => {
         const protectedLinks = document.querySelectorAll(".protected-link");
         protectedLinks.forEach((link) => {
             const permission = link.getAttribute("data-requires-permission");
-            const enabled = Boolean(session && permission && session.permisos?.[permission]);
+            const requiresAdmin = link.getAttribute("data-requires-admin") === "true";
+            let enabled = true;
+            if (requiresAdmin) {
+                enabled = isAdminSession(session);
+            } else if (permission) {
+                enabled = Boolean(session && session.permisos?.[permission]);
+            }
             link.classList.toggle("protected-disabled", !enabled);
             link.setAttribute("aria-disabled", String(!enabled));
             if (!enabled) {
-                link.title = "Necesitas iniciar sesion con permisos para acceder";
+                link.title = requiresAdmin
+                    ? "Solo administradores pueden acceder"
+                    : "Necesitas iniciar sesion con permisos para acceder";
             } else {
                 link.removeAttribute("title");
             }
@@ -133,15 +150,14 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateNavigationBySession() {
         const session = getSession();
         const canRifa = Boolean(session && session.permisos?.rifa);
-        const canCertificados = Boolean(session && session.permisos?.certificados);
-        const canAdmin = Boolean(session && session.isAdmin);
-        const hasAnyWebAppAccess = canRifa || canCertificados || canAdmin;
+        const canAdmin = isAdminSession(session);
+        const hasAnyWebAppAccess = canRifa || canAdmin;
 
         if (webappsNavItem) {
             webappsNavItem.hidden = !hasAnyWebAppAccess;
         }
         menuRifa.hidden = !canRifa;
-        menuCertificados.hidden = !canCertificados;
+        menuCertificados.hidden = !canAdmin;
         menuAdmin.hidden = !canAdmin;
         dropdownBtn.disabled = false;
         dropdownBtn.setAttribute("aria-disabled", "false");
@@ -155,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
             mobileWebappsBlock.hidden = !hasAnyWebAppAccess;
         }
         if (mobileMenuRifa) mobileMenuRifa.hidden = !canRifa;
-        if (mobileMenuCertificados) mobileMenuCertificados.hidden = !canCertificados;
+        if (mobileMenuCertificados) mobileMenuCertificados.hidden = !canAdmin;
         if (mobileMenuAdmin) mobileMenuAdmin.hidden = !canAdmin;
 
         btnLoginOpen.hidden = Boolean(session);
@@ -454,6 +470,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (pageName === "rifa") {
                 await handleRifaAnimation();
+            } else if (pageName === "certificados") {
+                await loadCertificadosScript();
+                if (typeof window.initCertificadosAdminApp === "function") {
+                    window.initCertificadosAdminApp({ showMessage, getSession });
+                }
+                const mainLogo = document.querySelector(".main-logo");
+                if (mainLogo) mainLogo.classList.remove("logo-animate-up");
+            } else if (pageName === "canje") {
+                await loadCertificadosScript();
+                if (typeof window.initCanjePublicoApp === "function") {
+                    window.initCanjePublicoApp({ showMessage });
+                }
+                const mainLogo = document.querySelector(".main-logo");
+                if (mainLogo) mainLogo.classList.remove("logo-animate-up");
             } else {
                 const mainLogo = document.querySelector(".main-logo");
                 if (mainLogo) mainLogo.classList.remove("logo-animate-up");
@@ -537,6 +567,33 @@ document.addEventListener("DOMContentLoaded", () => {
             p.textContent = textoPlano;
             splash.appendChild(p);
         }
+    }
+
+    function loadCertificadosScript() {
+        return new Promise((resolve) => {
+            if (typeof window.initCertificadosAdminApp === "function") {
+                resolve();
+                return;
+            }
+            let el = document.getElementById("certificados-script");
+            if (!el) {
+                el = document.createElement("script");
+                el.id = "certificados-script";
+                el.src = "assets/certificados.js?v=7";
+                el.onerror = () => {
+                    console.error("Error cargando certificados.js");
+                    resolve();
+                };
+                document.body.appendChild(el);
+            }
+            let ticks = 0;
+            const timer = window.setInterval(() => {
+                if (typeof window.initCertificadosAdminApp === "function" || ticks++ > 120) {
+                    window.clearInterval(timer);
+                    resolve();
+                }
+            }, 50);
+        });
     }
 
     // Cargar el script de rifa dinámicamente
