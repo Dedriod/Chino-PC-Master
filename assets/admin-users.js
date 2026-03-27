@@ -30,10 +30,16 @@
     }
 
     function defaultEstadoOptions(current) {
-        const base = ["Activa", "Inactiva", "Bloqueada", "Suspendida"];
-        const c = String(current || "").trim();
-        if (c && !base.includes(c)) base.unshift(c);
-        return base;
+        return ["Activa", "Inactiva", "Bloqueada", "Suspendida"];
+    }
+
+    function normalizeEstado(value) {
+        const t = String(value || "").trim().toLowerCase();
+        if (t === "activo" || t === "activa") return "Activa";
+        if (t === "inactiva") return "Inactiva";
+        if (t === "bloqueada") return "Bloqueada";
+        if (t === "suspendida") return "Suspendida";
+        return "Activa";
     }
 
     function createCellInput(type, value, disabled) {
@@ -257,7 +263,7 @@
                     esAdmin: normalizeBoolean(u.esAdmin),
                     permisoRifa: normalizeBoolean(u.permisoRifa),
                     permisoCert: normalizeBoolean(u.permisoCert),
-                    estado: String(u.estado || "Activa")
+                    estado: normalizeEstado(u.estado || "Activa")
                 }));
                 renderRows();
                 showMessage?.(`Usuarios cargados: ${users.length}`, "success", 2200);

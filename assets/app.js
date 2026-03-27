@@ -586,7 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!el) {
                 el = document.createElement("script");
                 el.id = "certificados-script";
-                el.src = "assets/certificados.js?v=8";
+                el.src = "assets/certificados.js?v=9";
                 el.onerror = () => {
                     console.error("Error cargando certificados.js");
                     resolve();
@@ -613,7 +613,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!el) {
                 el = document.createElement("script");
                 el.id = "admin-users-script";
-                el.src = "assets/admin-users.js?v=2";
+                el.src = "assets/admin-users.js?v=3";
                 el.onerror = () => {
                     console.error("Error cargando admin-users.js");
                     resolve();

@@ -21,6 +21,19 @@
             .toUpperCase();
     }
 
+    function formatFechaLargaEs(raw) {
+        if (!raw) return "";
+        const d = raw instanceof Date ? raw : new Date(raw);
+        if (Number.isNaN(d.getTime())) return String(raw);
+        const txt = new Intl.DateTimeFormat("es-ES", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        }).format(d);
+        return txt.charAt(0).toUpperCase() + txt.slice(1);
+    }
+
     function mapCertRecord(d) {
         if (!d || typeof d !== "object") {
             return { id: "", cliente: "", servicio: "", exp: "", estado: "" };
@@ -29,7 +42,7 @@
             id: String(d.id ?? d.codigo ?? d.certId ?? d.certificadoId ?? "").trim(),
             cliente: String(d.nombreCliente ?? d.cliente ?? d.nombre ?? "").trim(),
             servicio: String(d.servicio ?? "").trim(),
-            exp: String(d.fechaExp ?? d.fecha_exp ?? d.expiracion ?? d.expira ?? "").trim(),
+            exp: formatFechaLargaEs(d.fechaExp ?? d.fecha_exp ?? d.expiracion ?? d.expira ?? ""),
             estado: String(d.estado ?? d.status ?? "").trim()
         };
     }
