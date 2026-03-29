@@ -1112,6 +1112,126 @@ a.card.spa-page-link {
     margin-bottom: 8px;
 }
 
+/* SOLUCIONES (estructura extendida + compacta en Home) */
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.service-card {
+    position: relative;
+    background: linear-gradient(155deg, rgba(0, 71, 171, 0.14), rgba(33, 33, 33, 0.96));
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 15px;
+    padding: 24px 20px;
+    box-shadow: 0 0 0 1px rgba(0, 71, 171, 0.25), 0 10px 28px rgba(0, 0, 0, 0.28);
+    transition: transform 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease;
+}
+
+.service-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(0, 255, 255, 0.55);
+    box-shadow: 0 0 18px rgba(0, 255, 255, 0.15), 0 12px 30px rgba(0, 0, 0, 0.34);
+}
+
+.service-card--link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.service-card--link:focus-visible {
+    outline: 2px solid var(--neon-cyan);
+    outline-offset: 2px;
+}
+
+.service-icon {
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    background: rgba(0, 71, 171, 0.35);
+    color: var(--neon-cyan);
+    font-size: 1rem;
+}
+
+.service-card h3 {
+    color: var(--text-heading);
+    margin: 6px 0 10px;
+    font-size: 1.08rem;
+}
+
+.service-card p {
+    color: var(--text-body);
+    line-height: 1.68;
+    margin: 0;
+}
+
+.services-grid--compact .service-card {
+    padding: 20px 18px;
+}
+
+.services-grid--compact .service-card h3 {
+    font-size: 1rem;
+}
+
+.services-grid--compact .service-card p {
+    font-size: 0.93rem;
+    line-height: 1.58;
+}
+
+.service-detail-stack {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.service-detail-row {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(0, 255, 255, 0.18);
+    background: linear-gradient(140deg, rgba(0, 71, 171, 0.12), rgba(33, 33, 33, 0.95));
+    box-shadow: 0 0 0 1px rgba(0, 71, 171, 0.24), 0 8px 26px rgba(0, 0, 0, 0.28);
+    padding: 18px 18px 14px;
+}
+
+.service-detail-row--hooked .service-card--hook {
+    margin-bottom: 14px;
+    box-shadow: none;
+}
+
+.service-detail-row--hooked .service-card--hook:hover {
+    transform: none;
+    border-color: rgba(0, 255, 255, 0.35);
+    box-shadow: none;
+}
+
+.service-detail-head h3 {
+    margin: 4px 0 12px;
+    color: var(--neon-cyan);
+    font-size: 1.55rem;
+    font-family: "Orbitron", sans-serif;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
+}
+
+.service-detail-body p {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    line-height: 1.72;
+}
+
+.service-detail-body p:last-child {
+    margin-bottom: 0;
+}
+
+
 /* RESPONSIVE - Card Heading */
 @media (max-width: 480px) {
     .card h3 {
@@ -1156,6 +1276,69 @@ a.card.spa-page-link {
 .date {
     color: var(--accent-orange);
     font-weight: bold;
+}
+
+/* CTA LinkedIn en Trayectoria */
+.linkedin-container {
+    margin-top: 34px;
+    padding: 18px 20px;
+    border: 1px solid rgba(0, 71, 171, 0.45);
+    border-radius: 14px;
+    background: linear-gradient(160deg, rgba(0, 71, 171, 0.13), rgba(33, 33, 33, 0.95));
+}
+
+.linkedin-aux-text {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+.linkedin-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    border: 1px solid rgba(0, 255, 255, 0.35);
+    border-radius: 10px;
+    background: rgba(0, 71, 171, 0.22);
+    padding: 10px 14px;
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.linkedin-cta:hover {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 18px rgba(0, 255, 255, 0.22);
+    transform: translateY(-2px);
+}
+
+.linkedin-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    object-fit: cover;
+}
+
+.linkedin-text {
+    font-family: "Roboto Mono", monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    color: var(--text-heading);
+}
+
+@media (max-width: 768px) {
+    .linkedin-container {
+        margin-top: 26px;
+        padding: 14px;
+    }
+    .linkedin-cta {
+        width: 100%;
+        justify-content: center;
+    }
+    .linkedin-text {
+        text-align: center;
+        font-size: 0.75rem;
+        line-height: 1.35;
+    }
 }
 
 /* FORMULARIO DE CONTACTO */

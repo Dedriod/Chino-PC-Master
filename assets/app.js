@@ -454,6 +454,21 @@ document.addEventListener("DOMContentLoaded", () => {
         return clean || "home";
     }
 
+    function scrollToTarget(targetId) {
+        if (!targetId) {
+            window.scrollTo(0, 0);
+            return;
+        }
+        const el = document.getElementById(String(targetId));
+        if (!el) {
+            window.scrollTo(0, 0);
+            return;
+        }
+        window.requestAnimationFrame(() => {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+    }
+
     async function loadPage(page, options = {}) {
         const pageName = resolvePage(page);
         const session = getSession();
@@ -498,7 +513,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             setupContactFormOnCurrentPage();
             applyProtectedLinksState();
-            window.scrollTo(0, 0);
+            scrollToTarget(options.scrollTarget);
             return true;
         } catch (error) {
             mainContent.innerHTML = "<p>Error al cargar la pagina.</p>";
@@ -522,11 +537,17 @@ document.addEventListener("DOMContentLoaded", () => {
     function extractPageFromLink(link) {
         if (!link) return null;
         const explicit = link.getAttribute("data-page");
-        if (explicit) return resolvePage(explicit);
         const href = link.getAttribute("href");
-        if (!href || href === "#" || href.startsWith("http")) return null;
-        if (href.startsWith("#")) return resolvePage(href.slice(1));
-        return null;
+        let page = null;
+        if (explicit) page = resolvePage(explicit);
+        else if (href && href !== "#" && !href.startsWith("http") && href.startsWith("#")) {
+            page = resolvePage(href.slice(1));
+        }
+        if (!page) return null;
+        return {
+            page,
+            scrollTarget: String(link.getAttribute("data-scroll-target") || "").trim() || ""
+        };
     }
 
     function setupContactFormOnCurrentPage() {
@@ -725,15 +746,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("click", (event) => {
         const link = event.target.closest("a");
         if (!link) return;
-        const page = extractPageFromLink(link);
-        if (!page) return;
+        const navTarget = extractPageFromLink(link);
+        if (!navTarget) return;
         event.preventDefault();
         dropdownMenu.classList.remove("show");
         dropdownBtn.setAttribute("aria-expanded", "false");
         if (link.closest("#mobile-sidebar")) {
             closeMobileNav();
         }
-        navigateTo(page);
+        navigateTo(navTarget.page, { scrollTarget: navTarget.scrollTarget });
     });
 
     btnLoginOpen.addEventListener("click", () => openAuthModal("login"));
