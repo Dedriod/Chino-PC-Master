@@ -2,27 +2,36 @@
 setlocal EnableExtensions
 cd /d "%~dp0"
 
-where git >nul 2>&1
+set "GIT_CMD=git"
+where "%GIT_CMD%" >nul 2>&1
 if errorlevel 1 (
-    echo No se encontro "git" en el PATH. Instala Git para Windows o agrega git.exe al PATH.
-    pause
-    exit /b 1
+    if exist "%ProgramFiles%\Git\bin\git.exe" (
+        set "GIT_CMD=%ProgramFiles%\Git\bin\git.exe"
+    ) else if exist "%ProgramFiles%\Git\cmd\git.exe" (
+        set "GIT_CMD=%ProgramFiles%\Git\cmd\git.exe"
+    ) else if exist "%ProgramW6432%\Git\bin\git.exe" (
+        set "GIT_CMD=%ProgramW6432%\Git\bin\git.exe"
+    ) else (
+        echo No se encontro "git" en el PATH ni en rutas comunes.
+        echo Instala Git para Windows o agrega git.exe al PATH.
+        exit /b 1
+    )
 )
 
 echo === Repositorio: %cd% ===
+echo === Git: %GIT_CMD% ===
 echo.
 
-git add -A
-git diff --cached --quiet
+"%GIT_CMD%" add -A
+"%GIT_CMD%" diff --cached --quiet
 if errorlevel 1 (
     if "%~1"=="" (
-        git commit -m "chore: sincronizar cambios locales"
+        "%GIT_CMD%" commit -m "chore: sincronizar cambios locales"
     ) else (
-        git commit -m "%~1"
+        "%GIT_CMD%" commit -m "%~1"
     )
     if errorlevel 1 (
         echo El commit fallo. Revisa el mensaje de arriba.
-        pause
         exit /b 1
     )
     echo Cambios confirmados.
@@ -31,15 +40,13 @@ if errorlevel 1 (
 )
 
 echo.
-git push
+"%GIT_CMD%" push
 if errorlevel 1 (
     echo.
     echo Push fallido. Comprueba la red, la rama y las credenciales.
-    pause
     exit /b 1
 )
 
 echo.
 echo Listo: push a GitHub completado.
-pause
 exit /b 0
