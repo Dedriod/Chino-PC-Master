@@ -1803,6 +1803,23 @@
                 tr.querySelector(".adm-del-row")?.addEventListener("click", () => tr.remove());
                 tb.appendChild(tr);
             });
+
+            // Cargar cronograma real desde el Emisor (persistente en Sheet "Cron")
+            try {
+                const sch = await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "get_schedule" });
+                const cron = sch.data?.cron || sch.cron || {};
+                const dow = Number(cron.day_of_week);
+                const hour = Number(cron.hour);
+                const minute = Number(cron.minute);
+                const elDow = document.getElementById("adm-cron-dow");
+                const elH = document.getElementById("adm-cron-h");
+                const elM = document.getElementById("adm-cron-m");
+                if (elDow && !Number.isNaN(dow)) elDow.value = String(dow);
+                if (elH && !Number.isNaN(hour)) elH.value = String(hour);
+                if (elM && !Number.isNaN(minute)) elM.value = String(minute);
+            } catch (e) {
+                // Si falla, dejamos los defaults del HTML; el guardado seguirá funcionando.
+            }
         }
 
         document.querySelectorAll("[data-adtab]").forEach((btn) => {

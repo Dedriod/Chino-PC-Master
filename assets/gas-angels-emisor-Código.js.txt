@@ -28,6 +28,7 @@ function doPost(e) {
     if (action === "get_angeles") return jsonOut_(handleGetAngeles_());
     if (action === "save_angeles") return jsonOut_(handleSaveAngeles_(data));
     if (action === "save_schedule") return jsonOut_(handleSaveSchedule_(data));
+    if (action === "get_schedule") return jsonOut_(handleGetSchedule_());
     if (action === "list_pendientes") return jsonOut_(handleListPendientes_());
     if (action === "force_send_pending") return jsonOut_(handleForceSendPending_(data));
     if (action === "admin_delete_pending") return jsonOut_(handleAdminDeletePending_(data));
@@ -225,22 +226,108 @@ function handleSaveAngeles_(data) {
 function handleSaveSchedule_(data) {
   initSheets_();
   const sh = getSs_().getSheetByName("Cron");
-  sh.getRange("A1").setValue(Number(data.day_of_week));
-  sh.getRange("B1").setValue(Number(data.hour));
-  sh.getRange("C1").setValue(Number(data.minute));
+  const dow = Math.max(0, Math.min(6, Number(data.day_of_week)));
+  const hour = Math.max(0, Math.min(23, Number(data.hour)));
+  const minute = Math.max(0, Math.min(59, Number(data.minute)));
+  sh.getRange("A1").setValue(dow);
+  sh.getRange("B1").setValue(hour);
+  sh.getRange("C1").setValue(minute);
   return { status: "SUCCESS", data: { ok: true } };
 }
 
+function readCron_(ss) {
+  const sh = (ss || getSs_()).getSheetByName("Cron");
+  const dow = Math.max(0, Math.min(6, Number(sh.getRange("A1").getValue() || 0)));
+  const hour = Math.max(0, Math.min(23, Number(sh.getRange("B1").getValue() || 0)));
+  const minute = Math.max(0, Math.min(59, Number(sh.getRange("C1").getValue() || 0)));
+  return { day_of_week: dow, hour: hour, minute: minute };
+}
+
+function ymdToDayIndex_(y, m, d) {
+  // Días desde 1970-01-01 (gregoriano), estable por Y/M/D sin depender de zona horaria.
+  const ms = Date.UTC(Number(y), Number(m) - 1, Number(d), 0, 0, 0);
+  return Math.floor(ms / 86400000);
+}
+
+function dowFromYmd_(y, m, d) {
+  // 0=Domingo..6=Sábado
+  const dayIndex = ymdToDayIndex_(y, m, d);
+  return (dayIndex + 4) % 7; // 1970-01-01 fue jueves(4)
+}
+
+function parseStartIsoToLocalParts_(startIso, tz) {
+  const s = String(startIso || "").trim();
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) {
+    return { y: Number(m[1]), mo: Number(m[2]), d: Number(m[3]), hh: 0, mm: 0 };
+  }
+  const dt = new Date(s);
+  if (isNaN(dt.getTime())) return null;
+  const y = Number(Utilities.formatDate(dt, tz, "yyyy"));
+  const mo = Number(Utilities.formatDate(dt, tz, "MM"));
+  const d = Number(Utilities.formatDate(dt, tz, "dd"));
+  const hh = Number(Utilities.formatDate(dt, tz, "HH"));
+  const mm = Number(Utilities.formatDate(dt, tz, "mm"));
+  return { y, mo, d, hh, mm };
+}
+
+function nowLocalParts_(tz) {
+  const dt = new Date();
+  const y = Number(Utilities.formatDate(dt, tz, "yyyy"));
+  const mo = Number(Utilities.formatDate(dt, tz, "MM"));
+  const d = Number(Utilities.formatDate(dt, tz, "dd"));
+  const hh = Number(Utilities.formatDate(dt, tz, "HH"));
+  const mm = Number(Utilities.formatDate(dt, tz, "mm"));
+  return { y, mo, d, hh, mm };
+}
+
 function computeWeekKey_() {
+  initSheets_();
+  const tz = Session.getScriptTimeZone();
   const startIso = String(getProp_("FECHA_INICIO_ISO") || "").trim();
   if (!startIso) return "W0";
-  const start = new Date(startIso);
-  const now = new Date();
-  if (isNaN(start.getTime())) return "W0";
-  const ms = now.getTime() - start.getTime();
-  let w = Math.floor(ms / (7 * 24 * 60 * 60 * 1000));
-  if (w < 0) w = 0;
-  return "W" + w;
+  const start = parseStartIsoToLocalParts_(startIso, tz);
+  if (!start) return "W0";
+
+  const cron = readCron_(getSs_());
+  const startDay = ymdToDayIndex_(start.y, start.mo, start.d);
+  const startDow = dowFromYmd_(start.y, start.mo, start.d);
+  const startMin = startDay * 1440 + (Number(start.hh) * 60 + Number(start.mm));
+
+  const now = nowLocalParts_(tz);
+  const nowDay = ymdToDayIndex_(now.y, now.mo, now.d);
+  const nowMin = nowDay * 1440 + (Number(now.hh) * 60 + Number(now.mm));
+
+  // Primer corte semanal (fin de semana W0) en el DOW/hora configurados.
+  let delta = (Number(cron.day_of_week) - Number(startDow) + 7) % 7;
+  let boundaryDay = startDay + delta;
+  let boundaryMin = boundaryDay * 1440 + (Number(cron.hour) * 60 + Number(cron.minute));
+  if (boundaryMin <= startMin) boundaryMin += 7 * 1440;
+
+  if (nowMin < boundaryMin) return "W0";
+  const w = 1 + Math.floor((nowMin - boundaryMin) / (7 * 1440));
+  return "W" + Math.max(0, w);
+}
+
+function handleGetSchedule_() {
+  initSheets_();
+  const ss = getSs_();
+  const tz = Session.getScriptTimeZone();
+  const cron = readCron_(ss);
+  const wk = computeWeekKey_();
+  const startIso = String(getProp_("FECHA_INICIO_ISO") || "").trim();
+  const now = nowLocalParts_(tz);
+
+  return {
+    status: "SUCCESS",
+    data: {
+      timezone: tz,
+      start_iso: startIso,
+      cron: cron,
+      computed_week: wk,
+      now_local: Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm")
+    }
+  };
 }
 
 function readDesignObject_() {
