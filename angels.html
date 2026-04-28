@@ -1,0 +1,601 @@
+<section class="angels-root content-section" id="angels-root" aria-label="Ángeles Secreto">
+    <div id="angels-public-bar" class="angels-public-bar" hidden>
+        <a href="#" class="angels-public-bar__brand" id="angels-public-home-link">Chino PC Master</a>
+        <span class="angels-public-bar__sep">·</span>
+        <span class="angels-public-bar__tag" id="angels-public-bar-mode">Ángeles</span>
+    </div>
+
+    <div class="angels-hero" id="angels-hero-block">
+        <h2 class="angels-title tech-font">Ángeles</h2>
+        <p class="angels-subtitle" id="angels-route-label"></p>
+    </div>
+
+    <div id="angels-super" class="angels-panel angels-panel--super" hidden>
+        <header class="angels-hub-toolbar angels-glass" aria-label="Barra Maestro Ángeles">
+            <div class="angels-hub-toolbar__left">
+                <button type="button" class="angels-btn angels-btn--toolbar-sm hub-nav-btn" data-hub-view="guide" title="Guía e implementación">Guía</button>
+                <button type="button" class="angels-btn angels-btn--toolbar-sm hub-nav-btn" data-hub-view="emisor" title="Código del Emisor">Script Emisor</button>
+            </div>
+            <div class="angels-hub-toolbar__center">
+                <h2 class="angels-hub-title tech-font">Proyectos Ángeles Secretos</h2>
+                <div class="angels-hub-master-row" role="group" aria-labelledby="angels-hub-master-heading">
+                    <span id="angels-hub-master-heading" class="angels-hub-master-heading">Código Maestro</span>
+                    <input
+                        type="password"
+                        id="angels-master-pin"
+                        class="angels-input angels-hub-master-input"
+                        placeholder="Mismo valor que MASTER_ADMIN_PIN en Google"
+                        autocomplete="off"
+                        aria-describedby="angels-hub-master-hint"
+                    />
+                    <button type="button" class="angels-btn angels-btn--primary angels-btn--toolbar-sm" id="angels-master-pin-save">
+                        Guardar código maestro
+                    </button>
+                </div>
+                <p id="angels-hub-master-hint" class="angels-hub-master-hint angels-hub-lead--compact">
+                    Se guarda en este navegador (local) y se usa para crear, listar y editar todos los proyectos.
+                </p>
+            </div>
+            <div class="angels-hub-toolbar__right">
+                <button type="button" class="angels-btn angels-btn--primary hub-nav-btn" data-hub-view="wizard">Crear proyecto</button>
+            </div>
+        </header>
+
+        <div id="angels-hub-pane-guide" class="angels-hub-pane" data-hub-pane="guide" hidden>
+            <article class="angels-guide angels-glass">
+                <h3 class="angels-guide__h">Quién va en qué cuenta</h3>
+                <ul class="angels-guide__list">
+                    <li>
+                        <strong>ldcalvoe4595@gmail.com</strong> — solo el <strong>Apps Script Maestro</strong>
+                        (<code>angels_maestro/Código.js</code>): registro de proyectos, hashes, Drive e imágenes de cabecera.
+                    </li>
+                    <li>
+                        <strong>Cuenta del evento (u otra)</strong> — el <strong>Apps Script Emisor</strong>
+                        (<code>angels_sender</code>): Gmail, hojas del proyecto, cola de envíos. Puedes enviarle el código desde la sección
+                        «Script del Emisor» (por correo o Drive).
+                    </li>
+                </ul>
+
+                <h3 class="angels-guide__h">Enlaces públicos (sin login en esta web)</h3>
+                <ul class="angels-guide__list">
+                    <li><strong>Participantes</strong> — URL con <code>#u/&lt;hash&gt;</code>: acceso solo con el enlace, sin contraseña del sitio.</li>
+                    <li><strong>Organizador</strong> — URL con <code>#a/&lt;hash&gt;</code>: acceso solo con el enlace + la contraseña de organizador que definiste al crear el proyecto (no es la sesión de Chino PC Master).</li>
+                </ul>
+
+                <h3 class="angels-guide__h">Configurar el Maestro en Google</h3>
+                <p class="angels-guide__p">
+                    Un solo proyecto Apps Script «Maestro» y una sola hoja de cálculo sirven para <strong>todos</strong> los eventos Ángeles;
+                    no hace falta duplicar script ni spreadsheet por cada proyecto web.
+                </p>
+                <ol class="angels-guide__list angels-guide__list--ol">
+                    <li>
+                        <strong>ID del script (para Clasp):</strong> en <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a>,
+                        abre el proyecto Maestro → engranaje «Configuración del proyecto» → «ID de secuencia de comandos».
+                        Ese valor va en <code>fuentes-apps-script/angels_maestro/.clasp.json</code> como <code>scriptId</code>.
+                        Desde esa carpeta en consola: <code>clasp login</code> (misma cuenta), luego <code>clasp push</code>.
+                        Requisito previo: en <a href="https://script.google.com/home/usersettings" target="_blank" rel="noopener">Ajustes del usuario</a>, activar la API de Apps Script.
+                    </li>
+                    <li>
+                        <strong>Propiedades del script</strong> (mismo menú de configuración → «Propiedades del script»; <strong>no</strong> van en el código del repo):
+                        <code>SPREADSHEET_ID</code> = el ID que aparece en la URL de tu Sheet (<code>…/spreadsheets/d/<em>ID</em>/…</code>);
+                        <code>MASTER_ADMIN_PIN</code> = una contraseña que <strong>tú eliges</strong> (Google no la genera); la misma cadena usarás en el asistente web como PIN de super admin.
+                    </li>
+                    <li>Implementación → Aplicación web → Ejecutar como tú, acceso <strong>Cualquiera</strong>. Copia la URL que termina en <code>/exec</code>.</li>
+                </ol>
+
+                <h3 class="angels-guide__h">Enlazar el sitio GitHub Pages</h3>
+                <p class="angels-guide__p">En <code>index.html</code> del sitio, dentro de <code>&lt;head&gt;</code> o antes de cargar <code>app.js</code>:</p>
+                <pre class="angels-guide__pre" id="angels-guide-index-pre"></pre>
+                <p class="angels-guide__p">Sustituye la URL por la de tu implementación Maestro.</p>
+
+                <h3 class="angels-guide__h">Después: crear proyecto y Emisor</h3>
+                <p class="angels-guide__p">
+                    Usa <strong>Crear proyecto</strong> en este menú. Al finalizar, copia el <code>secret</code> al Emisor como <code>PROJECT_SECRET</code>,
+                    ejecuta la configuración del Emisor y comparte los enlaces <code>#u/</code> y <code>#a/</code> con participantes y organizador.
+                </p>
+            </article>
+        </div>
+
+        <div id="angels-hub-pane-wizard" class="angels-hub-pane" data-hub-pane="wizard" hidden>
+            <div class="angels-wizard-toolbar angels-row">
+                <button type="button" class="angels-btn" id="angels-wizard-to-menu">← Volver a Proyectos</button>
+            </div>
+            <div id="angels-wizard" class="angels-wizard">
+            <p class="angels-wizard-step-label" id="angels-wizard-step-label" aria-live="polite"></p>
+            <ol class="angels-wizard-track" id="angels-wizard-track" aria-hidden="true"></ol>
+
+            <div class="angels-wizard-panel angels-card angels-glass" data-wizard-step="1" hidden>
+                <h3 class="angels-card-title">Paso 1 — Código Maestro</h3>
+                <p class="angels-hint">
+                    Debe coincidir con la propiedad <code>MASTER_ADMIN_PIN</code> del script Maestro en Google. Escribe el valor en el campo
+                    <strong>Código Maestro</strong> de la <strong>barra superior</strong> y pulsa <strong>Guardar código maestro</strong>; queda almacenado en este navegador para todos los proyectos. Más detalle en <strong>Guía e implementación</strong>.
+                </p>
+                <p class="angels-hint">Cuando lo tengas guardado, pulsa <strong>Siguiente</strong> para continuar con el Emisor.</p>
+            </div>
+
+            <div class="angels-wizard-panel angels-card angels-glass" data-wizard-step="2" hidden>
+                <h3 class="angels-card-title">Paso 2 — Apps Script Emisor (cuenta del evento)</h3>
+                <p class="angels-guide__p">
+                    Haz esto <strong>antes</strong> de registrar el proyecto en el Maestro: necesitas una URL <code>/exec</code> del Emisor.
+                    Los valores del formulario son los que <strong>cambian por proyecto</strong>; el código del Emisor es el mismo archivo para todos.
+                </p>
+                <ol class="angels-instruct-list angels-mt">
+                    <li>En <a href="https://script.google.com" target="_blank" rel="noopener">script.google.com</a> (cuenta del evento), crea un proyecto <strong>Emisor</strong> o abre uno vacío.</li>
+                    <li>
+                        Pulsa <strong>Copiar código completo del Emisor</strong> y pega todo el contenido en el editor como <code>Código.js</code> (un solo archivo; sustituye lo que haya).
+                    </li>
+                    <li>
+                        Crea una <strong>Google Sheet</strong> para este evento (o usa una existente). Copia su ID de la URL (<code>…/spreadsheets/d/<em>ID</em>/…</code>).
+                        En el Emisor: engranaje → <strong>Propiedades del script</strong> → añade la propiedad <code>SPREADSHEET_ID</code> con ese ID.
+                    </li>
+                    <li>
+                        <strong>Implementar</strong> → <strong>Nueva implementación</strong> → tipo <strong>Aplicación web</strong> → Ejecutar como tú → acceso <strong>Cualquiera</strong>.
+                        Copia la URL que termina en <code>/exec</code> y pégala abajo.
+                    </li>
+                </ol>
+                <div class="angels-row angels-row--wrap angels-mt">
+                    <button type="button" class="angels-btn angels-btn--primary" id="angels-wizard-copy-emisor-full">Copiar código completo del Emisor</button>
+                    <span class="angels-hint" id="angels-wizard-emisor-copy-status" aria-live="polite"></span>
+                </div>
+                <p class="angels-guide__p angels-mt"><strong>Datos de la cuenta Emisor (este proyecto)</strong></p>
+                <div class="angels-form-grid">
+                    <label>ID de la hoja del Emisor (mismo valor que <code>SPREADSHEET_ID</code> en el script; referencia para ti) <input type="text" id="angels-emitter-sheet-id" class="angels-input" placeholder="Pega el ID de la spreadsheet" autocomplete="off" /></label>
+                    <label>URL Web App del Emisor (…/exec) <input type="url" id="angels-new-sender-url" class="angels-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off" /></label>
+                    <label>Email de la cuenta donde está el Emisor <input type="email" id="angels-new-sender-email" class="angels-input" placeholder="evento@gmail.com" autocomplete="off" /></label>
+                </div>
+                <p class="angels-hint angels-mt"><code>PROJECT_SECRET</code> lo obtendrás <strong>después</strong> de crear el proyecto en el Maestro (paso final).</p>
+            </div>
+
+            <div class="angels-wizard-panel angels-card angels-glass" data-wizard-step="3" hidden>
+                <h3 class="angels-card-title">Paso 3 — Datos del evento en el Maestro</h3>
+                <p class="angels-hint">Nombre visible, inicio del ciclo de semanas y contraseña del panel organizador (<code>#a/…</code>).</p>
+                <div class="angels-form-grid">
+                    <label>Nombre del proyecto <input type="text" id="angels-new-name" class="angels-input" /></label>
+                    <label>Fecha de inicio (ciclo de semanas) <input type="date" id="angels-new-start" class="angels-input" /></label>
+                    <label>Contraseña del panel organizador (<code>#a/…</code>) <input type="password" id="angels-new-admin-pass" class="angels-input" autocomplete="new-password" /></label>
+                </div>
+            </div>
+
+            <div class="angels-wizard-panel angels-card angels-glass" data-wizard-step="4" hidden>
+                <h3 class="angels-card-title">Paso 4 — Crear en el Maestro</h3>
+                <p class="angels-hint">Se creará la fila en la hoja <strong>Proyectos</strong>, hashes de acceso y carpeta en Drive.</p>
+                <button type="button" class="angels-btn angels-btn--primary" id="angels-create-project">Crear proyecto ahora</button>
+            </div>
+
+            <div class="angels-wizard-panel angels-card angels-glass angels-wizard-panel--success" data-wizard-step="5" hidden>
+                <h3 class="angels-card-title">Paso 5 — Terminar el Emisor y enlaces</h3>
+                <ol class="angels-instruct-list">
+                    <li>En el proyecto Apps Script <strong>Emisor</strong>, abre <strong>Configuración del proyecto → Propiedades del script</strong>.</li>
+                    <li>Pega el valor de <code>secret</code> (abajo) en <code>PROJECT_SECRET</code> (debe coincidir exactamente con el Maestro).</li>
+                    <li>Comprueba que <code>SPREADSHEET_ID</code> sigue siendo el de la hoja de este evento.</li>
+                    <li>Pulsa «Configurar emisor» para crear hojas y guardar el hash de la contraseña admin, o envía manualmente <code>setup_project</code> con el JSON.</li>
+                    <li>Si cambiaste código o propiedades, vuelve a <strong>Implementar</strong> la Web App del Emisor.</li>
+                </ol>
+                <div class="angels-row angels-row--wrap angels-mt">
+                    <button type="button" class="angels-btn angels-btn--primary" id="angels-run-emisor-setup" hidden>Configurar emisor (setup_project)</button>
+                    <button type="button" class="angels-btn" id="angels-copy-create-json" hidden>Copiar respuesta JSON</button>
+                    <button type="button" class="angels-btn" id="angels-copy-secret-only" hidden>Copiar solo secret</button>
+                    <button type="button" class="angels-btn" id="angels-copy-user-link" hidden>Copiar enlace participantes</button>
+                    <button type="button" class="angels-btn" id="angels-copy-admin-link" hidden>Copiar enlace organizador</button>
+                </div>
+                <pre class="angels-pre" id="angels-create-result" hidden></pre>
+            </div>
+
+            <div class="angels-wizard-nav-buttons angels-row angels-row--wrap angels-mt">
+                <button type="button" class="angels-btn" id="angels-wizard-back">Atrás</button>
+                <button type="button" class="angels-btn angels-btn--primary" id="angels-wizard-next">Siguiente</button>
+                <button type="button" class="angels-btn" id="angels-wizard-finish" hidden>Terminar y volver a Proyectos</button>
+            </div>
+            </div>
+        </div>
+
+        <div id="angels-hub-pane-emisor" class="angels-hub-pane" data-hub-pane="emisor" hidden>
+            <div class="angels-card angels-glass">
+                <h3 class="angels-card-title">Código del Emisor (Google Apps Script)</h3>
+                <p class="angels-guide__p">
+                    Este es el contenido de <code>Código.js</code> del proyecto <strong>angels_sender</strong>. Pégalo en un proyecto nuevo en la
+                    cuenta Google del evento (o adjunta el archivo en un correo a quien despliegue el Emisor).
+                </p>
+                <p class="angels-hint">
+                    Mantén al día esta copia: el archivo canónico vive en
+                    <code>ChinoPCMasterAppScripts/fuentes-apps-script/angels_sender/Código.js</code>.
+                </p>
+                <div class="angels-row angels-row--wrap angels-mt">
+                    <button type="button" class="angels-btn angels-btn--primary" id="angels-copy-emisor-script">Copiar script completo</button>
+                    <span class="angels-hint" id="angels-emisor-script-status" aria-live="polite"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="angels-hub-pane-projects" class="angels-hub-pane" data-hub-pane="projects">
+            <div class="angels-card angels-glass">
+                <h3 class="angels-card-title">Proyectos registrados</h3>
+                <p class="angels-hint">
+                    Necesitas el <strong>Código Maestro</strong> guardado en la barra superior y la URL del Maestro en <code>index.html</code> (botón <strong>Guía</strong>).
+                </p>
+                <button type="button" class="angels-btn" id="angels-reload-projects">Recargar tabla</button>
+                <div class="angels-table-wrap angels-mt">
+                    <table class="angels-table" id="angels-projects-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Nombre</th>
+                                <th>Links</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="angels-edit-modal" class="angels-modal" hidden aria-modal="true" role="dialog" aria-labelledby="angels-edit-modal-title">
+            <div class="angels-modal__backdrop" id="angels-edit-modal-backdrop"></div>
+            <div class="angels-modal__card angels-glass">
+                <h3 id="angels-edit-modal-title">Editar proyecto</h3>
+                <p class="angels-hint">Los cambios se guardan en el Maestro. Si cambias fecha o contraseña de organizador, vuelve a ejecutar <code>setup_project</code> en el Emisor (botón abajo o manualmente).</p>
+                <input type="hidden" id="angels-edit-project-id" />
+                <div class="angels-edit-readonly angels-glass angels-mt">
+                    <p class="angels-hint" style="margin:0 0 0.5rem 0"><strong>Identificadores</strong> (solo lectura; los enlaces no cambian desde aquí)</p>
+                    <div class="angels-row angels-row--wrap">
+                        <span class="angels-edit-kv"><strong>ID</strong> <code id="angels-edit-display-id"></code></span>
+                        <button type="button" class="angels-btn angels-btn--toolbar-sm" id="angels-edit-copy-id" title="Copiar ID">📋 ID</button>
+                    </div>
+                    <div class="angels-row angels-row--wrap angels-mt">
+                        <span class="angels-edit-kv"><strong>#u</strong> <code id="angels-edit-hash-u" class="angels-edit-code"></code></span>
+                        <button type="button" class="angels-btn angels-btn--toolbar-sm" id="angels-edit-copy-hu" title="Copiar hash participante">📋</button>
+                    </div>
+                    <div class="angels-row angels-row--wrap angels-mt">
+                        <span class="angels-edit-kv"><strong>#a</strong> <code id="angels-edit-hash-a" class="angels-edit-code"></code></span>
+                        <button type="button" class="angels-btn angels-btn--toolbar-sm" id="angels-edit-copy-ha" title="Copiar hash admin">📋</button>
+                    </div>
+                </div>
+                <div class="angels-form-grid angels-mt">
+                    <label>Nombre del proyecto <input type="text" id="angels-edit-name" class="angels-input" autocomplete="off" /></label>
+                    <label>Fecha inicio (ciclo de semanas) <input type="date" id="angels-edit-start" class="angels-input" /></label>
+                    <label>URL Web App Emisor (…/exec) <input type="text" id="angels-edit-sender-url" class="angels-input" inputmode="url" autocomplete="off" spellcheck="false" /></label>
+                    <label>Email cuenta Emisor <input type="email" id="angels-edit-sender-email" class="angels-input" autocomplete="off" /></label>
+                    <label>Nueva contraseña organizador <code>#a/…</code> (opcional; vacío = no cambiar) <input type="password" id="angels-edit-admin-pass" class="angels-input" autocomplete="new-password" /></label>
+                    <label>Referencia ID hoja Emisor (<code>SPREADSHEET_ID</code>; solo en este navegador) <input type="text" id="angels-edit-sheet-ref" class="angels-input" placeholder="Opcional — no se guarda en Google" autocomplete="off" /></label>
+                </div>
+                <div class="angels-modal__actions angels-row angels-row--wrap">
+                    <button type="button" class="angels-btn angels-btn--primary" id="angels-edit-run-setup" hidden>Ejecutar setup en Emisor</button>
+                    <span class="angels-hint" id="angels-edit-run-setup-hint" hidden>Sincroniza fecha o contraseña admin en el Apps Script Emisor.</span>
+                </div>
+                <div class="angels-modal__actions">
+                    <button type="button" class="angels-btn" id="angels-edit-cancel">Cancelar</button>
+                    <button type="button" class="angels-btn angels-btn--primary" id="angels-edit-save">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="angels-admin-wrap" class="angels-panel" hidden>
+        <div id="angels-admin-gate" class="angels-card angels-glass">
+            <h3 class="angels-card-title">Acceso organizador</h3>
+            <p>No necesitas iniciar sesión en Chino PC Master: basta con este enlace y la contraseña de organizador que definiste al crear el proyecto en el Maestro.</p>
+            <div class="angels-row">
+                <input type="password" id="angels-admin-pass-input" class="angels-input" autocomplete="current-password" />
+                <button type="button" class="angels-btn angels-btn--primary" id="angels-admin-pass-submit">Entrar</button>
+            </div>
+            <p class="angels-error" id="angels-admin-gate-err" hidden></p>
+        </div>
+        <div id="angels-admin-app" class="angels-app" hidden>
+            <nav class="angels-tabs" role="tablist" aria-label="Admin">
+                <button type="button" class="angels-tab is-active" data-adtab="design">Diseño email</button>
+                <button type="button" class="angels-tab" data-adtab="angeles">Ángeles</button>
+                <button type="button" class="angels-tab" data-adtab="maint">Mantenimiento</button>
+            </nav>
+            <div class="angels-tab-panels">
+                <div class="angels-tab-panel is-active" data-adpanel="design">
+                    <div class="angels-split angels-split--preview-tall">
+                        <div class="angels-editor-col angels-design-form-scroll">
+                            <section class="angels-design-section angels-glass">
+                                <h4 class="angels-design-section__title">1 · Asunto</h4>
+                                <p class="angels-hint">No aparece en la vista previa; es el asunto de los correos enviados desde la plataforma.</p>
+                                <label class="angels-design-label">Asunto <input type="text" id="adm-subject" class="angels-input" placeholder="Ej. Mensaje de Tu Ángel Secreto" /></label>
+                            </section>
+                            <section class="angels-design-section angels-glass">
+                                <h4 class="angels-design-section__title">2 · Fondo (página del correo)</h4>
+                                <div class="angels-design-row">
+                                    <label>Fondo <input type="color" id="adm-bg1" title="Color de fondo" /></label>
+                                    <label class="angels-design-check"><input type="checkbox" id="adm-bg-grad" /> Gradiente</label>
+                                </div>
+                                <div id="row-grad-bg" class="angels-grad-fields" hidden>
+                                    <label>Fondo 2 <input type="color" id="adm-bg2" /></label>
+                                    <label>Orientación
+                                        <select id="adm-bg-orient" class="angels-input">
+                                            <option value="linear-diag">Diagonal (135°)</option>
+                                            <option value="linear-down">Vertical (arriba → abajo)</option>
+                                            <option value="linear-right">Horizontal (izquierda → derecha)</option>
+                                            <option value="radial">Radial</option>
+                                        </select>
+                                    </label>
+                                </div>
+                            </section>
+                            <section class="angels-design-section angels-glass">
+                                <h4 class="angels-design-section__title">3 · Header (banner)</h4>
+                                <div class="angels-design-row">
+                                    <label>Fondo <input type="color" id="adm-h-bg" title="Fondo detrás del banner" /></label>
+                                    <label class="angels-design-check"><input type="checkbox" id="adm-h-grad" /> Gradiente</label>
+                                </div>
+                                <div id="row-grad-h" class="angels-grad-fields" hidden>
+                                    <label>Fondo 2 <input type="color" id="adm-h-bg2" /></label>
+                                    <label>Orientación
+                                        <select id="adm-h-orient" class="angels-input">
+                                            <option value="linear-diag">Diagonal (135°)</option>
+                                            <option value="linear-down">Vertical (arriba → abajo)</option>
+                                            <option value="linear-right">Horizontal (izquierda → derecha)</option>
+                                            <option value="radial">Radial</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <label class="angels-design-label">Alto de la imagen del banner (50–400 px)
+                                    <input type="number" id="adm-h-height" class="angels-input" min="50" max="400" value="120" />
+                                    <span class="angels-hint" id="adm-h-height-lbl">120</span> px — el encabezado del correo toma esa altura; la imagen se escala y va centrada (ancho según proporción).
+                                </label>
+                                <p class="angels-hint">Imagen (Drive vía Maestro). Arrastra aquí o haz clic.</p>
+                                <label id="adm-h-drop" class="angels-dropzone" aria-label="Zona para soltar imagen del banner">
+                                    <span class="angels-dropzone__text">Suelta la imagen o haz clic para elegir</span>
+                                    <input type="file" id="adm-h-file" class="angels-dropzone__file" accept="image/*" title="Elegir imagen" />
+                                </label>
+                                <button type="button" class="angels-btn angels-mt" id="adm-h-upload">Subir a Maestro</button>
+                                <input type="hidden" id="adm-h-image-url" value="" autocomplete="off" />
+                                <div id="adm-h-upload-preview-wrap" class="angels-header-upload-preview" hidden>
+                                    <span class="angels-hint">Imagen del banner (subida)</span>
+                                    <img id="adm-h-upload-preview-img" class="angels-header-upload-preview__img" alt="Vista del banner" decoding="async" />
+                                </div>
+                            </section>
+                            <section class="angels-design-section angels-glass">
+                                <h4 class="angels-design-section__title">4 · Contenido (cuerpo del mensaje)</h4>
+                                <div class="angels-design-row">
+                                    <label>Fondo <input type="color" id="adm-c-bg" /></label>
+                                    <label class="angels-design-check"><input type="checkbox" id="adm-c-grad" /> Gradiente</label>
+                                </div>
+                                <div id="row-grad-c" class="angels-grad-fields" hidden>
+                                    <label>Fondo 2 <input type="color" id="adm-c-bg2" /></label>
+                                    <label>Orientación
+                                        <select id="adm-c-orient" class="angels-input">
+                                            <option value="linear-diag">Diagonal (135°)</option>
+                                            <option value="linear-down">Vertical (arriba → abajo)</option>
+                                            <option value="linear-right">Horizontal (izquierda → derecha)</option>
+                                            <option value="radial">Radial</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <fieldset class="angels-fieldset angels-mt">
+                                    <legend>Tipografía (correo)</legend>
+                                    <div class="angels-typo-group">
+                                        <span class="angels-typo-label">Saludo</span>
+                                        <div class="angels-row">
+                                            <select id="adm-font-g" class="angels-input"></select>
+                                            <input type="number" id="adm-size-g" class="angels-input angels-input--narrow" min="8" max="40" value="18" title="Tamaño en px" />
+                                            <input type="color" id="adm-color-g" value="#e8eaf6" title="Color del texto" />
+                                        </div>
+                                    </div>
+                                    <div class="angels-typo-group">
+                                        <span class="angels-typo-label">Cuerpo</span>
+                                        <div class="angels-row">
+                                            <select id="adm-font-b" class="angels-input"></select>
+                                            <input type="number" id="adm-size-b" class="angels-input angels-input--narrow" min="8" max="40" value="15" title="Tamaño en px" />
+                                            <input type="color" id="adm-color-b" value="#eceff1" title="Color del texto" />
+                                        </div>
+                                    </div>
+                                    <div class="angels-typo-group">
+                                        <span class="angels-typo-label">Firma</span>
+                                        <div class="angels-row">
+                                            <select id="adm-font-s" class="angels-input"></select>
+                                            <input type="number" id="adm-size-s" class="angels-input angels-input--narrow" min="8" max="40" value="14" title="Tamaño en px" />
+                                            <input type="color" id="adm-color-s" value="#b39ddb" title="Color del texto" />
+                                        </div>
+                                    </div>
+                                    <div class="angels-typo-group">
+                                        <span class="angels-typo-label">Enlaces (Hipervínculos)</span>
+                                        <div class="angels-row">
+                                            <label class="angels-design-check">Normal <input type="color" id="adm-color-link" value="#80deea" title="Color del enlace" /></label>
+                                            <label class="angels-design-check">Visitado <input type="color" id="adm-color-link-v" value="#b39ddb" title="Color del enlace visitado" /></label>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                            </section>
+                            <section class="angels-design-section angels-glass">
+                                <h4 class="angels-design-section__title">5 · Footer</h4>
+                                <div class="angels-design-row">
+                                    <label>Fondo <input type="color" id="adm-f-bg" /></label>
+                                    <label class="angels-design-check"><input type="checkbox" id="adm-f-grad" /> Gradiente</label>
+                                </div>
+                                <div id="row-grad-f" class="angels-grad-fields" hidden>
+                                    <label>Fondo 2 <input type="color" id="adm-f-bg2" /></label>
+                                    <label>Orientación
+                                        <select id="adm-f-orient" class="angels-input">
+                                            <option value="linear-diag">Diagonal (135°)</option>
+                                            <option value="linear-down">Vertical (arriba → abajo)</option>
+                                            <option value="linear-right">Horizontal (izquierda → derecha)</option>
+                                            <option value="radial">Radial</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <label class="angels-design-label">Mensaje (texto o HTML sencillo)</label>
+                                <textarea id="adm-footer-msg" class="angels-input angels-textarea" rows="5" placeholder="Texto del pie del correo…"></textarea>
+                                <div class="angels-typo-group angels-mt">
+                                    <span class="angels-typo-label">Tipografía del mensaje</span>
+                                    <div class="angels-row">
+                                        <select id="adm-footer-msg-font" class="angels-input"></select>
+                                        <input type="number" id="adm-footer-msg-size" class="angels-input angels-input--narrow" min="8" max="40" value="12" title="Tamaño en px" />
+                                        <input type="color" id="adm-color-f" value="#cfd8dc" title="Color del texto" />
+                                    </div>
+                                </div>
+                            </section>
+                            <button type="button" class="angels-btn angels-btn--primary angels-mt" id="adm-save-design">Guardar diseño</button>
+                        </div>
+                        <div class="angels-preview-col">
+                            <button type="button" class="angels-preview-toggle" id="adm-preview-toggle">Vista previa</button>
+                            <div class="angels-preview-box angels-glass" id="adm-preview-box">
+                                <div class="angels-preview-header">
+                                    <span class="angels-preview-title">Vista Previa</span>
+                                    <button type="button" class="angels-btn angels-btn--sm" id="adm-download-html">Descarga HTML</button>
+                                </div>
+                                <iframe class="angels-preview-frame" id="adm-preview-frame" title="Vista previa email"></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="angels-tab-panel" data-adpanel="angeles">
+                    <div class="angels-row angels-row--end">
+                        <button type="button" class="angels-btn" id="adm-add-angel-row">+ Fila</button>
+                        <button type="button" class="angels-btn angels-btn--primary" id="adm-save-angeles">Guardar tabla</button>
+                    </div>
+                    <div class="angels-table-wrap">
+                        <table class="angels-table" id="adm-angeles-table">
+                            <thead>
+                                <tr>
+                                    <th>Nombre Ángel</th>
+                                    <th>Nombre Angelado</th>
+                                    <th>Email Angelado</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="angels-card angels-glass angels-mt">
+                        <h4>Cronograma envío</h4>
+                        <div class="angels-row">
+                            <label>Día
+                                <select id="adm-cron-dow">
+                                    <option value="0">Domingo</option>
+                                    <option value="1">Lunes</option>
+                                    <option value="2">Martes</option>
+                                    <option value="3">Miércoles</option>
+                                    <option value="4">Jueves</option>
+                                    <option value="5">Viernes</option>
+                                    <option value="6">Sábado</option>
+                                </select>
+                            </label>
+                            <label>Hora <input type="number" id="adm-cron-h" min="0" max="23" value="22" /></label>
+                            <label>Minuto <input type="number" id="adm-cron-m" min="0" max="59" value="0" /></label>
+                            <button type="button" class="angels-btn angels-btn--primary" id="adm-save-cron">Guardar</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="angels-tab-panel" data-adpanel="maint">
+                    <div class="angels-row angels-row--end angels-mb">
+                        <button type="button" class="angels-btn" id="adm-reload-pend">Refrescar</button>
+                        <button type="button" class="angels-btn angels-btn--primary" id="adm-force-send">Forzar envío pendientes (Semana actual)</button>
+                    </div>
+                    <div class="angels-form-grid angels-glass" style="padding: 0.75rem; border-radius: 10px;">
+                        <div class="angels-row">
+                            <label>Semana <select id="adm-filter-week" class="angels-input"><option value="">Todas</option></select></label>
+                            <label>Ángel <input type="text" id="adm-filter-angel" class="angels-input" placeholder="Buscar..." /></label>
+                            <label>Angelado <input type="text" id="adm-filter-angelado" class="angels-input" placeholder="Buscar..." /></label>
+                        </div>
+                    </div>
+                    <div class="angels-table-wrap angels-mt">
+                        <table class="angels-table" id="adm-pend-table">
+                            <thead>
+                                <tr>
+                                    <th>Semana</th>
+                                    <th>Ángel</th>
+                                    <th>Angelado</th>
+                                    <th>Estado</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="angels-user-wrap" class="angels-panel" hidden>
+        <nav class="angels-tabs" role="tablist">
+            <button type="button" class="angels-tab is-active" data-utab="write">Redactar</button>
+            <button type="button" class="angels-tab" data-utab="replies">Respuestas</button>
+            <button type="button" class="angels-tab" data-utab="buddies">Asignaciones</button>
+            <button type="button" class="angels-tab" data-utab="status">Status semanal</button>
+        </nav>
+        <div class="angels-tab-panels">
+            <div class="angels-tab-panel is-active" data-upanel="write">
+                <div class="angels-split angels-split--user angels-split--preview-tall">
+                    <div class="angels-editor-col">
+                        <label>Ángel
+                            <select id="usr-angel-select" class="angels-input"></select>
+                        </label>
+                        <p><strong>Angelado:</strong> <span id="usr-angelado-lbl">—</span></p>
+                        <label class="angels-design-label">Saludo</label>
+                        <textarea
+                            id="usr-greeting"
+                            class="angels-input angels-textarea"
+                            rows="2"
+                            maxlength="600"
+                            spellcheck="true"
+                            placeholder="Ej. Hola, un abrazo para ti."
+                        ></textarea>
+                        <p class="angels-hint">Texto plano (sin HTML). Si lo dejas vacío se usa el saludo por defecto («Hola Angelado,»). Se guarda en este navegador.</p>
+                        <div class="angels-rt-toolbar">
+                            <button type="button" class="angels-icon-btn" data-cmd="bold" title="Negrita"><b>B</b></button>
+                            <button type="button" class="angels-icon-btn" data-cmd="italic" title="Cursiva"><i>I</i></button>
+                            <button type="button" class="angels-icon-btn" data-cmd="underline" title="Subrayado"><u>U</u></button>
+                            <button type="button" class="angels-icon-btn" data-cmd="justifyLeft" title="Izq">⯇</button>
+                            <button type="button" class="angels-icon-btn" data-cmd="justifyCenter" title="Centro">≡</button>
+                            <button type="button" class="angels-icon-btn" data-cmd="justifyRight" title="Der">⯈</button>
+                            <button type="button" class="angels-icon-btn" id="usr-link-btn" title="Hipervínculo">🔗</button>
+                            <button type="button" class="angels-icon-btn" id="usr-img-btn" title="Subir imagen (ImgBB)" aria-label="Subir imagen (ImgBB)">🖼</button>
+                            <input type="file" id="usr-img-file" accept="image/*" hidden aria-hidden="true" tabindex="-1" />
+                        </div>
+                        <div id="usr-link-dialog" class="angels-rt-dialog angels-glass" hidden>
+                            <div class="angels-form-grid">
+                                <label>Texto visible <input type="text" id="usr-link-text" class="angels-input" placeholder="Ej. Google" /></label>
+                                <label>URL <input type="url" id="usr-link-url" class="angels-input" placeholder="https://..." /></label>
+                            </div>
+                            <div class="angels-row angels-row--end angels-mt">
+                                <button type="button" class="angels-btn angels-btn--sm" id="usr-link-cancel">Cancelar</button>
+                                <button type="button" class="angels-btn angels-btn--primary angels-btn--sm" id="usr-link-insert">Insertar</button>
+                            </div>
+                        </div>
+                        <div id="usr-editor" class="angels-rich" contenteditable="true" aria-label="Cuerpo del mensaje"></div>
+                        <p class="angels-disclaimer">Tu Ángel Secreto — mensaje anónimo; no incluyas datos que te identifiquen si deseas mantener el anonimato.</p>
+                        <button type="button" class="angels-btn angels-btn--primary" id="usr-save-msg">Enviar a cola</button>
+                    </div>
+                    <div class="angels-preview-col">
+                        <button type="button" class="angels-preview-toggle" id="usr-preview-toggle">Vista previa</button>
+                        <div class="angels-preview-box angels-glass" id="usr-preview-box">
+                            <div class="angels-preview-header">
+                                <span class="angels-preview-title">Vista Previa</span>
+                                <button type="button" class="angels-btn angels-btn--sm" id="usr-download-html">Descarga HTML</button>
+                            </div>
+                            <iframe class="angels-preview-frame" id="usr-preview-frame" title="Vista previa"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="angels-tab-panel" data-upanel="replies">
+                <div id="usr-replies-acc" class="angels-accordion"></div>
+            </div>
+            <div class="angels-tab-panel" data-upanel="buddies">
+                <ul id="usr-buddies-list" class="angels-simple-list"></ul>
+            </div>
+            <div class="angels-tab-panel" data-upanel="status">
+                <div class="angels-row angels-mb">
+                    <label>Semana: 
+                        <select id="usr-status-week" class="angels-input"></select>
+                    </label>
+                </div>
+                <div class="angels-table-wrap">
+                    <table class="angels-table" id="usr-status-table">
+                        <thead>
+                            <tr>
+                                <th>Ángel</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -122,6 +122,13 @@ clasp version "notas del cambio"
 clasp redeploy TU_DEPLOYMENT_ID -V NUMERO_VERSION -d "notas"
 ```
 
+### Ángeles (Maestro + Emisor)
+
+- **Maestro:** `ChinoPCMasterAppScripts\fuentes-apps-script\angels_maestro` — bat en `Angels_Maestro\`.
+- **Emisor (plantilla):** `fuentes-apps-script\angels_sender` — bat en `Angels_Sender\`; duplica el proyecto por cada cuenta Google.
+- En el sitio: `window.CPM_ANGELS_MASTER_GAS_URL` en `index.html` (URL `/exec` del Maestro).
+- **ID de implementación** del Web App Maestro (para `clasp redeploy`): `ChinoPCMasterAppScripts\fuentes-apps-script\angels_maestro\webapp-deployment-id.txt`; la URL canónica también está en `Angels_Maestro\LEEME.txt`.
+
 ---
 
 ## Problemas frecuentes

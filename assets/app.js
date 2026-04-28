@@ -2,7 +2,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const BACKEND_WEB_APP_URL =
         "https://script.google.com/macros/s/AKfycbylYwlJaLInQ7dtEdhC40IOTGD8G3GqTL0yN343s5I5MOLSeTTdQAgN44A7ktEUPK3oHw/exec";
     const AUTH_STORAGE_KEY = "cpm_session";
-    const PUBLIC_PAGES = new Set(["home", "soluciones", "trayectoria", "contacto", "webapps", "canje"]);
+    const PUBLIC_PAGES = new Set([
+        "home",
+        "soluciones",
+        "trayectoria",
+        "contacto",
+        "webapps",
+        "canje",
+        "angels"
+    ]);
     const PERMISSION_PAGES = {
         rifa: "rifa"
     };
@@ -18,6 +26,55 @@ document.addEventListener("DOMContentLoaded", () => {
     const mobileSidebarClose = document.getElementById("mobile-sidebar-close");
     const mobileWebappsBlock = document.getElementById("mobile-webapps-block");
     const mainContent = document.getElementById("main-content");
+    const mainEl = document.querySelector("main");
+    const appLoaderEl = document.getElementById("cpm-app-loader");
+
+    function setAppLoaderBusy(busy) {
+        if (appLoaderEl) appLoaderEl.setAttribute("aria-busy", busy ? "true" : "false");
+        if (mainEl) mainEl.setAttribute("aria-busy", busy ? "true" : "false");
+    }
+
+    function finishAppLoadingTransition() {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.body.classList.remove("cpm-app-loading");
+                setAppLoaderBusy(false);
+            });
+        });
+    }
+
+    /**
+     * Overlay mientras hay peticiones al backend desde pestañas u hub (p. ej. Ángeles),
+     * sin mezclar con el ciclo de navegación SPA (loadPage).
+     */
+    let cpmTabDataLoadingDepth = 0;
+
+    function cpmEnterTabDataLoading() {
+        cpmTabDataLoadingDepth += 1;
+        if (cpmTabDataLoadingDepth === 1) {
+            document.body.classList.add("cpm-app-loading");
+            setAppLoaderBusy(true);
+        }
+    }
+
+    function cpmLeaveTabDataLoading() {
+        cpmTabDataLoadingDepth = Math.max(0, cpmTabDataLoadingDepth - 1);
+        if (cpmTabDataLoadingDepth === 0) {
+            finishAppLoadingTransition();
+        }
+    }
+
+    window.cpmWithTabBackendLoading = async function cpmWithTabBackendLoading(run) {
+        cpmEnterTabDataLoading();
+        try {
+            return await run();
+        } finally {
+            cpmLeaveTabDataLoading();
+        }
+    };
+
+    /** Evita quitar el overlay si otra navegación empezó antes de terminar la anterior. */
+    let cpmNavigationGeneration = 0;
     const authMessage = document.getElementById("auth-message");
     const authModal = document.getElementById("auth-modal");
     const authBackdrop = document.getElementById("auth-backdrop");
@@ -115,6 +172,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function canAccessPage(page, session) {
         if (PUBLIC_PAGES.has(page)) return true;
+        if (page === "angels-dashboard") {
+            return Boolean(session && isAdminSession(session));
+        }
         if (page === "admin" || page === "certificados") {
             return Boolean(session && isAdminSession(session));
         }
@@ -159,6 +219,8 @@ document.addEventListener("DOMContentLoaded", () => {
         menuRifa.hidden = !canRifa;
         menuCertificados.hidden = !canAdmin;
         menuAdmin.hidden = !canAdmin;
+        const menuAngelsDash = dropdownMenu?.querySelector('[data-page="angels-dashboard"]');
+        if (menuAngelsDash) menuAngelsDash.hidden = !canAdmin;
         dropdownBtn.disabled = false;
         dropdownBtn.setAttribute("aria-disabled", "false");
         dropdownBtn.classList.remove("is-disabled");
@@ -173,6 +235,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (mobileMenuRifa) mobileMenuRifa.hidden = !canRifa;
         if (mobileMenuCertificados) mobileMenuCertificados.hidden = !canAdmin;
         if (mobileMenuAdmin) mobileMenuAdmin.hidden = !canAdmin;
+        const mobileMenuAngels = mobileSidebar?.querySelector('[data-page="angels-dashboard"]');
+        if (mobileMenuAngels) mobileMenuAngels.hidden = !canAdmin;
 
         btnLoginOpen.hidden = Boolean(session);
         btnRegisterOpen.hidden = Boolean(session);
@@ -454,6 +518,42 @@ document.addEventListener("DOMContentLoaded", () => {
         return clean || "home";
     }
 
+    /**
+     * Rutas Ángeles: #u/<hash20> y #a/<hash20> (hash case-sensitive).
+     * Super admin: #angels-dashboard
+     */
+    function parseRouteFromHash(rawHash) {
+        const raw = String(rawHash || "").replace(/^#/, "").trim();
+        const userMatch = raw.match(/^u\/(.+)$/i);
+        if (userMatch) {
+            return { page: "angels", angels: { mode: "u", hash: userMatch[1] } };
+        }
+        const adminMatch = raw.match(/^a\/(.+)$/i);
+        if (adminMatch) {
+            return { page: "angels", angels: { mode: "a", hash: adminMatch[1] } };
+        }
+        const clean = raw.toLowerCase();
+        if (clean === "angels-dashboard") {
+            return { page: "angels-dashboard", angels: null };
+        }
+        return { page: clean || "home", angels: null };
+    }
+
+    function htmlFileForPage(page) {
+        if (page === "angels" || page === "angels-dashboard") return "angels";
+        return page;
+    }
+
+    function hashStringForRoute(page, angels) {
+        if (page === "angels-dashboard") return "#angels-dashboard";
+        if (page === "angels" && angels?.mode && angels?.hash) {
+            const prefix = angels.mode === "a" ? "a" : "u";
+            return `#${prefix}/${angels.hash}`;
+        }
+        if (page === "home") return "#";
+        return `#${page}`;
+    }
+
     function scrollToTarget(targetId) {
         if (!targetId) {
             window.scrollTo(0, 0);
@@ -473,11 +573,18 @@ document.addEventListener("DOMContentLoaded", () => {
         const pageName = resolvePage(page);
         const session = getSession();
         if (!options.skipGuard && !canAccessPage(pageName, session)) {
+            finishAppLoadingTransition();
             return routeDenied(pageName);
         }
 
+        const navGen = ++cpmNavigationGeneration;
+        cpmTabDataLoadingDepth = 0;
+        document.body.classList.add("cpm-app-loading");
+        setAppLoaderBusy(true);
+        let pageReady = null;
         try {
-            const response = await fetch(`${pageName}.html`);
+            const htmlName = htmlFileForPage(pageName);
+            const response = await fetch(`${htmlName}.html`);
             if (!response.ok) throw new Error("Pagina no encontrada");
             const content = await response.text();
             mainContent.innerHTML = content;
@@ -488,27 +595,54 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (pageName === "certificados") {
                 await loadCertificadosScript();
                 if (typeof window.initCertificadosAdminApp === "function") {
-                    window.initCertificadosAdminApp({ showMessage, getSession });
+                    pageReady = window.initCertificadosAdminApp({ showMessage, getSession });
                 }
                 const mainLogo = document.querySelector(".main-logo");
                 if (mainLogo) mainLogo.classList.remove("logo-animate-up");
             } else if (pageName === "admin") {
                 await loadAdminUsersScript();
                 if (typeof window.initAdminUsersApp === "function") {
-                    window.initAdminUsersApp({ showMessage, getSession, callBackend });
+                    pageReady = window.initAdminUsersApp({ showMessage, getSession, callBackend });
                 }
                 const mainLogo = document.querySelector(".main-logo");
                 if (mainLogo) mainLogo.classList.remove("logo-animate-up");
             } else if (pageName === "canje") {
                 await loadCertificadosScript();
                 if (typeof window.initCanjePublicoApp === "function") {
-                    window.initCanjePublicoApp({ showMessage });
+                    pageReady = window.initCanjePublicoApp({ showMessage });
                 }
                 const mainLogo = document.querySelector(".main-logo");
                 if (mainLogo) mainLogo.classList.remove("logo-animate-up");
+            } else if (pageName === "angels" || pageName === "angels-dashboard") {
+                document.body.classList.add("cpm-angels-route");
+                const ang = options.angels;
+                if (pageName === "angels" && ang && (ang.mode === "u" || ang.mode === "a")) {
+                    document.body.classList.add("cpm-angels-standalone");
+                } else {
+                    document.body.classList.remove("cpm-angels-standalone");
+                }
+                await loadAngelsScript();
+                if (typeof window.initAngelsApp === "function") {
+                    pageReady = window.initAngelsApp({
+                        showMessage,
+                        getSession,
+                        isAdminSession,
+                        page: pageName,
+                        angels: options.angels || null,
+                        navigateHome: () => navigateTo("home", { replaceHistory: true })
+                    });
+                }
             } else {
                 const mainLogo = document.querySelector(".main-logo");
                 if (mainLogo) mainLogo.classList.remove("logo-animate-up");
+            }
+
+            if (pageReady != null && typeof pageReady.then === "function") {
+                await pageReady;
+            }
+
+            if (pageName !== "angels" && pageName !== "angels-dashboard") {
+                document.body.classList.remove("cpm-angels-route", "cpm-angels-standalone");
             }
 
             setupContactFormOnCurrentPage();
@@ -519,18 +653,28 @@ document.addEventListener("DOMContentLoaded", () => {
             mainContent.innerHTML = "<p>Error al cargar la pagina.</p>";
             console.error(error);
             return false;
+        } finally {
+            if (navGen === cpmNavigationGeneration) {
+                finishAppLoadingTransition();
+            }
         }
     }
 
     async function navigateTo(page, options = {}) {
         const pageName = resolvePage(page);
-        if (!options.skipGuard && !protectRoutes(pageName)) return;
-        const ok = await loadPage(pageName, options);
+        const angels = options.angels != null ? options.angels : null;
+        if (!options.skipGuard && !protectRoutes(pageName)) {
+            finishAppLoadingTransition();
+            return;
+        }
+        const ok = await loadPage(pageName, { ...options, angels });
         if (!ok) return;
+        const state = { page: pageName, angels };
+        const url = hashStringForRoute(pageName, angels);
         if (options.replaceHistory) {
-            window.history.replaceState({ page: pageName }, "", pageName === "home" ? "#" : `#${pageName}`);
+            window.history.replaceState(state, "", url);
         } else if (!options.fromPopState) {
-            window.history.pushState({ page: pageName }, "", pageName === "home" ? "#" : `#${pageName}`);
+            window.history.pushState(state, "", url);
         }
     }
 
@@ -538,15 +682,26 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!link) return null;
         const explicit = link.getAttribute("data-page");
         const href = link.getAttribute("href");
+        if (href && href !== "#" && !href.startsWith("http") && href.startsWith("#")) {
+            const route = parseRouteFromHash(href.slice(1));
+            if (route.page === "angels" || route.page === "angels-dashboard") {
+                return {
+                    page: route.page,
+                    scrollTarget: String(link.getAttribute("data-scroll-target") || "").trim() || "",
+                    angels: route.angels
+                };
+            }
+        }
         let page = null;
         if (explicit) page = resolvePage(explicit);
         else if (href && href !== "#" && !href.startsWith("http") && href.startsWith("#")) {
-            page = resolvePage(href.slice(1));
+            page = parseRouteFromHash(href.slice(1)).page;
         }
         if (!page) return null;
         return {
             page,
-            scrollTarget: String(link.getAttribute("data-scroll-target") || "").trim() || ""
+            scrollTarget: String(link.getAttribute("data-scroll-target") || "").trim() || "",
+            angels: null
         };
     }
 
@@ -607,7 +762,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!el) {
                 el = document.createElement("script");
                 el.id = "certificados-script";
-                el.src = "assets/certificados.js?v=9";
+                el.src = "assets/certificados.js?v=10";
                 el.onerror = () => {
                     console.error("Error cargando certificados.js");
                     resolve();
@@ -617,6 +772,43 @@ document.addEventListener("DOMContentLoaded", () => {
             let ticks = 0;
             const timer = window.setInterval(() => {
                 if (typeof window.initCertificadosAdminApp === "function" || ticks++ > 120) {
+                    window.clearInterval(timer);
+                    resolve();
+                }
+            }, 50);
+        });
+    }
+
+    function loadAngelsScript() {
+        return new Promise((resolve) => {
+            if (typeof window.initAngelsApp === "function") {
+                resolve();
+                return;
+            }
+            function appendScript(id, src, onload) {
+                const existing = document.getElementById(id);
+                if (existing) {
+                    if (typeof onload === "function") onload();
+                    return;
+                }
+                const s = document.createElement("script");
+                s.id = id;
+                s.src = src;
+                s.onload = () => {
+                    if (typeof onload === "function") onload();
+                };
+                s.onerror = () => {
+                    console.error("Error cargando", src);
+                    resolve();
+                };
+                document.body.appendChild(s);
+            }
+            appendScript("angels-api-script", "assets/angels-api.js?v=2", () => {
+                appendScript("angels-app-script", "assets/angels-app.js?v=30", resolve);
+            });
+            let ticks = 0;
+            const timer = window.setInterval(() => {
+                if (typeof window.initAngelsApp === "function" || ticks++ > 200) {
                     window.clearInterval(timer);
                     resolve();
                 }
@@ -634,7 +826,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!el) {
                 el = document.createElement("script");
                 el.id = "admin-users-script";
-                el.src = "assets/admin-users.js?v=3";
+                el.src = "assets/admin-users.js?v=4";
                 el.onerror = () => {
                     console.error("Error cargando admin-users.js");
                     resolve();
@@ -661,20 +853,26 @@ document.addEventListener("DOMContentLoaded", () => {
             script.id = "rifa-script";
             script.src = "assets/rifa.js";
             script.onload = () => {
-                if (typeof window.initRifaApp === "function") {
-                    window.initRifaApp();
-                } else {
-                    console.error("initRifaApp no esta definida en rifa.js");
-                    liberarRifaSplashConError(
-                        "No se pudo inicializar la rifa (initRifaApp). Revisa la consola (F12)."
-                    );
-                    const el = document.querySelector("#rifa-app #loading-indicator");
-                    if (el) {
-                        el.innerHTML =
-                            "<p class='error-message'>No se pudo inicializar la rifa (initRifaApp). Revisa la consola.</p>";
+                (async () => {
+                    if (typeof window.initRifaApp === "function") {
+                        try {
+                            await window.initRifaApp();
+                        } catch (e) {
+                            console.error(e);
+                        }
+                    } else {
+                        console.error("initRifaApp no esta definida en rifa.js");
+                        liberarRifaSplashConError(
+                            "No se pudo inicializar la rifa (initRifaApp). Revisa la consola (F12)."
+                        );
+                        const el = document.querySelector("#rifa-app #loading-indicator");
+                        if (el) {
+                            el.innerHTML =
+                                "<p class='error-message'>No se pudo inicializar la rifa (initRifaApp). Revisa la consola.</p>";
+                        }
                     }
-                }
-                resolve();
+                    resolve();
+                })();
             };
             script.onerror = () => {
                 console.error("Error cargando rifa.js");
@@ -754,7 +952,10 @@ document.addEventListener("DOMContentLoaded", () => {
         if (link.closest("#mobile-sidebar")) {
             closeMobileNav();
         }
-        navigateTo(navTarget.page, { scrollTarget: navTarget.scrollTarget });
+        navigateTo(navTarget.page, {
+            scrollTarget: navTarget.scrollTarget,
+            angels: navTarget.angels || null
+        });
     });
 
     btnLoginOpen.addEventListener("click", () => openAuthModal("login"));
@@ -816,15 +1017,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     window.addEventListener("popstate", (event) => {
-        const page = resolvePage(event.state?.page || window.location.hash.slice(1) || "home");
-        if (!protectRoutes(page)) return;
-        navigateTo(page, { fromPopState: true });
+        const st = event.state;
+        const raw = window.location.hash.slice(1) || "";
+        const route =
+            st && st.page
+                ? { page: st.page, angels: st.angels || null }
+                : parseRouteFromHash(raw);
+        if (!protectRoutes(route.page)) {
+            finishAppLoadingTransition();
+            return;
+        }
+        void navigateTo(route.page, { fromPopState: true, angels: route.angels });
     });
 
     setupRealtimeRegisterValidation();
     updateNavigationBySession();
-    const initialPage = resolvePage(window.location.hash.slice(1) || "home");
-    if (protectRoutes(initialPage)) {
-        navigateTo(initialPage, { replaceHistory: true });
-    }
+    const initialRoute = parseRouteFromHash(window.location.hash.slice(1) || "home");
+    (async function bootApp() {
+        try {
+            if (protectRoutes(initialRoute.page)) {
+                await navigateTo(initialRoute.page, { replaceHistory: true, angels: initialRoute.angels });
+            } else {
+                finishAppLoadingTransition();
+            }
+        } catch (e) {
+            console.error(e);
+            finishAppLoadingTransition();
+        }
+    })();
 });

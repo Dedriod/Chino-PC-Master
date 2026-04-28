@@ -1,0 +1,447 @@
+/**
+ * Ángeles — Apps Script Emisor (hojas locales, cola de envío, Gmail).
+ * Script Properties: SPREADSHEET_ID, PROJECT_SECRET, ADMIN_SALT, ADMIN_PASS_HASH, FECHA_INICIO_ISO
+ * Tras crear proyecto en Maestro, ejecuta acción setup_project con los datos devueltos (una vez).
+ *
+ * Copia sincronizada desde ChinoPCMasterAppScripts/fuentes-apps-script/angels_sender/Código.js
+ * (al cambiar el Emisor en Apps Script, actualiza también este archivo en el sitio web).
+ */
+function doGet() {
+  return jsonOut_({ status: "SUCCESS", data: { service: "angels_sender" } });
+}
+
+function doPost(e) {
+  try {
+    const data = parseBody_(e);
+    const secret = String(data.projectSecret || "").trim();
+    if (String(data.action || "") === "setup_project") {
+      return jsonOut_(handleSetupProject_(data));
+    }
+    if (!verifySecret_(secret)) {
+      return jsonOut_({ status: "ERROR", message: "Secret inválido." });
+    }
+    const action = String(data.action || "").trim();
+    if (action === "ping") return jsonOut_({ status: "SUCCESS", data: { pong: true } });
+    if (action === "admin_login") return jsonOut_(handleAdminLogin_(data));
+    if (action === "get_config") return jsonOut_(handleGetConfig_());
+    if (action === "save_design") return jsonOut_(handleSaveDesign_(data));
+    if (action === "get_angeles") return jsonOut_(handleGetAngeles_());
+    if (action === "save_angeles") return jsonOut_(handleSaveAngeles_(data));
+    if (action === "save_schedule") return jsonOut_(handleSaveSchedule_(data));
+    if (action === "list_pendientes") return jsonOut_(handleListPendientes_());
+    if (action === "force_send_pending") return jsonOut_(handleForceSendPending_(data));
+    if (action === "admin_delete_pending") return jsonOut_(handleAdminDeletePending_(data));
+    if (action === "user_list_angeles") return jsonOut_(handleGetAngeles_());
+    if (action === "user_save_message") return jsonOut_(handleUserSaveMessage_(data));
+    if (action === "user_list_buddies") return jsonOut_(handleUserListBuddies_());
+    if (action === "user_week_status") return jsonOut_(handleUserWeekStatus_(data));
+    if (action === "fetch_inbox_replies") return jsonOut_(handleFetchInboxReplies_());
+    return jsonOut_({
+      status: "ERROR",
+      message:
+        "Acción no reconocida" +
+        (action ? " («" + action + "»)." : " (acción vacía o JSON no leído).") +
+        " Publica de nuevo el Web App del Emisor si añadiste acciones nuevas en el código."
+    });
+  } catch (err) {
+    return jsonOut_({ status: "ERROR", message: String(err && err.message ? err.message : err) });
+  }
+}
+
+function jsonOut_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function parseBody_(e) {
+  if (!e) return {};
+  var raw = "";
+  var ctype = e.postData && e.postData.type ? String(e.postData.type).toLowerCase() : "";
+  var isForm = ctype.indexOf("application/x-www-form-urlencoded") !== -1;
+  if (isForm && e.parameter && e.parameter.payload != null && String(e.parameter.payload).trim() !== "") {
+    raw = String(e.parameter.payload).trim();
+  } else if (e.postData && e.postData.contents) {
+    raw = String(e.postData.contents).trim();
+  }
+  if (!raw && e.parameter && e.parameter.payload != null) {
+    raw = String(e.parameter.payload).trim();
+  }
+  if (!raw) return {};
+  var c0 = raw.charAt(0);
+  if (c0 !== "{" && c0 !== "[") {
+    var m = raw.match(/(?:^|&)payload=([^&]*)/);
+    if (m && m[1]) {
+      try {
+        raw = decodeURIComponent(String(m[1]).replace(/\+/g, " ")).trim();
+      } catch (x) {
+        return {};
+      }
+    }
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (x) {
+    return {};
+  }
+}
+
+function getProp_(k) {
+  return PropertiesService.getScriptProperties().getProperty(k);
+}
+
+function verifySecret_(secret) {
+  const expected = String(getProp_("PROJECT_SECRET") || "").trim();
+  return expected && secret === expected;
+}
+
+function handleSetupProject_(data) {
+  if (!verifySecret_(String(data.projectSecret || "").trim())) {
+    return { status: "ERROR", message: "PROJECT_SECRET no coincide." };
+  }
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty("ADMIN_SALT", String(data.admin_salt || ""));
+  props.setProperty("ADMIN_PASS_HASH", String(data.admin_pass_hash || ""));
+  props.setProperty("FECHA_INICIO_ISO", String(data.fecha_inicio_iso || ""));
+  initSheets_();
+  return { status: "SUCCESS", data: { ok: true } };
+}
+
+function sha256Hex_(text) {
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, text, Utilities.Charset.UTF_8);
+  return digest
+    .map(function (b) {
+      const v = (b + 256) % 256;
+      return ("0" + v.toString(16)).slice(-2);
+    })
+    .join("");
+}
+
+function handleAdminLogin_(data) {
+  const salt = String(getProp_("ADMIN_SALT") || "");
+  const expected = String(getProp_("ADMIN_PASS_HASH") || "");
+  const pass = String(data.password || "");
+  if (!salt || !expected) return { status: "ERROR", message: "Emisor sin configuración (setup_project)." };
+  const h = sha256Hex_(salt + ":" + pass);
+  if (h !== expected) return { status: "ERROR", message: "Contraseña incorrecta." };
+  return { status: "SUCCESS", data: { ok: true } };
+}
+
+function getSs_() {
+  const id = String(getProp_("SPREADSHEET_ID") || "").trim();
+  if (!id) throw new Error("Falta SPREADSHEET_ID.");
+  return SpreadsheetApp.openById(id);
+}
+
+function initSheets_() {
+  const ss = getSs_();
+  const names = ["Angeles", "Diseno", "Pendientes", "Enviados", "Cron"];
+  names.forEach(function (n) {
+    if (!ss.getSheetByName(n)) {
+      const sh = ss.insertSheet(n);
+      if (n === "Angeles") sh.appendRow(["Nombre_Angel", "Nombre_Angelado", "Email_Angelado"]);
+      if (n === "Diseno") sh.getRange("A1").setValue("{}");
+      if (n === "Pendientes")
+        sh.appendRow(["week_key", "nombre_angel", "nombre_angelado", "email_angelado", "html_mensaje", "status", "created_at"]);
+      if (n === "Enviados")
+        sh.appendRow(["week_key", "nombre_angel", "nombre_angelado", "email_angelado", "html_mensaje", "sent_at"]);
+      if (n === "Cron") {
+        sh.getRange("A1").setValue(3);
+        sh.getRange("B1").setValue(22);
+        sh.getRange("C1").setValue(0);
+      }
+    }
+  });
+}
+
+function defaultDesign_() {
+  return {
+    subject: "Mensaje de tu Ángel Secreto",
+    bg: { solid: "#0b1020", gradient: false, color2: "#2a1f4a", orient: "linear" },
+    header: { imageUrl: "", heightPx: 120, barColor: "#1e3a5f" },
+    sections: { contentBg: "#121a2e", footerBg: "#0e1628" },
+    fonts: {
+      greeting: { family: "Georgia", size: 18 },
+      body: { family: "Arial", size: 15 },
+      signature: { family: "Georgia", size: 14 },
+      footer: { family: "Arial", size: 12 }
+    }
+  };
+}
+
+function handleGetConfig_() {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Diseno");
+  const raw = String(sh.getRange("A1").getValue() || "").trim();
+  let design = defaultDesign_();
+  if (raw) {
+    try {
+      design = Object.assign(defaultDesign_(), JSON.parse(raw));
+    } catch (x) {}
+  }
+  return { status: "SUCCESS", data: { design: design } };
+}
+
+function handleSaveDesign_(data) {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Diseno");
+  sh.getRange("A1").setValue(JSON.stringify(data.design || {}));
+  return { status: "SUCCESS", data: { ok: true } };
+}
+
+function readAngelesRows_() {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Angeles");
+  const v = sh.getDataRange().getValues();
+  const out = [];
+  for (let r = 1; r < v.length; r++) {
+    out.push({
+      nombre_angel: String(v[r][0] || ""),
+      nombre_angelado: String(v[r][1] || ""),
+      email_angelado: String(v[r][2] || "")
+    });
+  }
+  return out;
+}
+
+function handleGetAngeles_() {
+  return { status: "SUCCESS", data: { angeles: readAngelesRows_() } };
+}
+
+function handleSaveAngeles_(data) {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Angeles");
+  sh.clearContents();
+  sh.appendRow(["Nombre_Angel", "Nombre_Angelado", "Email_Angelado"]);
+  const rows = data.rows || [];
+  rows.forEach(function (row) {
+    sh.appendRow([
+      String(row.angel || row.nombre_angel || ""),
+      String(row.angelado || row.nombre_angelado || ""),
+      String(row.email || row.email_angelado || "")
+    ]);
+  });
+  return { status: "SUCCESS", data: { ok: true } };
+}
+
+function handleSaveSchedule_(data) {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Cron");
+  sh.getRange("A1").setValue(Number(data.day_of_week));
+  sh.getRange("B1").setValue(Number(data.hour));
+  sh.getRange("C1").setValue(Number(data.minute));
+  return { status: "SUCCESS", data: { ok: true } };
+}
+
+function computeWeekKey_() {
+  const startIso = String(getProp_("FECHA_INICIO_ISO") || "").trim();
+  if (!startIso) return "W0";
+  const start = new Date(startIso);
+  const now = new Date();
+  if (isNaN(start.getTime())) return "W0";
+  const ms = now.getTime() - start.getTime();
+  let w = Math.floor(ms / (7 * 24 * 60 * 60 * 1000));
+  if (w < 0) w = 0;
+  return "W" + w;
+}
+
+function readDesignObject_() {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Diseno");
+  const raw = String(sh.getRange("A1").getValue() || "").trim();
+  let design = defaultDesign_();
+  if (raw) {
+    try {
+      design = Object.assign(defaultDesign_(), JSON.parse(raw));
+    } catch (x) {}
+  }
+  return design;
+}
+
+function getSubjectFromDesign_() {
+  const d = readDesignObject_();
+  return String(d.subject || "Ángel Secreto");
+}
+
+function handleListPendientes_() {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Pendientes");
+  const v = sh.getDataRange().getValues();
+  const rows = [];
+  for (let r = 1; r < v.length; r++) {
+    rows.push({
+      row_index: r + 1,
+      week: String(v[r][0]),
+      angel: String(v[r][1]),
+      angelado: String(v[r][2]),
+      status: String(v[r][5] || "")
+    });
+  }
+  return { status: "SUCCESS", data: { rows: rows.reverse() } };
+}
+
+function handleForceSendPending_(data) {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Pendientes");
+  const env = getSs_().getSheetByName("Enviados");
+  const v = sh.getDataRange().getValues();
+  const subject = getSubjectFromDesign_();
+  let sent = 0;
+  let errors = 0;
+  
+  const targetRow = data && data.row_index ? Number(data.row_index) : null;
+  const wk = computeWeekKey_();
+
+  for (let r = 1; r < v.length; r++) {
+    if (targetRow && (r + 1) !== targetRow) continue;
+    if (!targetRow && String(v[r][0]) !== wk) continue; // Si no hay targetRow, solo la semana actual
+    if (String(v[r][5]) !== "PENDING" && String(v[r][5]) !== "ERROR") continue;
+    
+    const email = String(v[r][3] || "");
+    const html = String(v[r][4] || "");
+    if (!email || !html) continue;
+    
+    try {
+      GmailApp.sendEmail(email, subject, "Ver en HTML.", { htmlBody: html });
+      sh.getRange(r + 1, 6).setValue("SENT");
+      env.appendRow([String(v[r][0]), v[r][1], v[r][2], email, html, new Date().toISOString()]);
+      sent++;
+    } catch (e) {
+      sh.getRange(r + 1, 6).setValue("ERROR");
+      errors++;
+    }
+  }
+  return { status: "SUCCESS", data: { sent: sent, errors: errors } };
+}
+
+function handleAdminDeletePending_(data) {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Pendientes");
+  const targetRow = data && data.row_index ? Number(data.row_index) : null;
+  if (targetRow && targetRow > 1) {
+    sh.deleteRow(targetRow);
+    return { status: "SUCCESS", data: { ok: true } };
+  }
+  return { status: "ERROR", message: "Fila no válida." };
+}
+
+function handleUserSaveMessage_(data) {
+  initSheets_();
+  const sh = getSs_().getSheetByName("Pendientes");
+  const env = getSs_().getSheetByName("Enviados");
+  const v = sh.getDataRange().getValues();
+  const vEnv = env.getDataRange().getValues();
+  const wk = computeWeekKey_();
+  const angel = String(data.nombre_angel || "");
+  const angelado = String(data.nombre_angelado || "");
+
+  for (let r = 1; r < v.length; r++) {
+    if (String(v[r][0]) === wk && String(v[r][1]) === angel) {
+      return { 
+        status: "ERROR", 
+        message: "Su mensaje no puede guardarse en el sistema porque ya se ha alojado el mensaje semanal. Puedes contactar a tu Capitán de Ángles Secretos para poder resolver este inconveniente en caso de que requieras asistencia por lo publicado anteriormente." 
+      };
+    }
+  }
+
+  for (let r = 1; r < vEnv.length; r++) {
+    if (String(vEnv[r][0]) === wk && String(vEnv[r][1]) === angel) {
+      return { 
+        status: "ERROR", 
+        message: "Su mensaje no puede guardarse en el sistema porque ya se ha alojado el mensaje semanal. Puedes contactar a tu Capitán de Ángles Secretos para poder resolver este inconveniente en caso de que requieras asistencia por lo publicado anteriormente." 
+      };
+    }
+  }
+
+  sh.appendRow([
+    wk,
+    String(data.nombre_angel || ""),
+    String(data.nombre_angelado || ""),
+    String(data.email_angelado || ""),
+    String(data.html_mensaje || ""),
+    "PENDING",
+    new Date().toISOString()
+  ]);
+  return { status: "SUCCESS", data: { ok: true } };
+}
+
+function handleUserListBuddies_() {
+  const rows = readAngelesRows_();
+  const pairs = rows
+    .filter(function (r) {
+      return r.nombre_angel && r.nombre_angelado;
+    })
+    .map(function (r) {
+      return { a: r.nombre_angel, b: r.nombre_angelado };
+    });
+  return { status: "SUCCESS", data: { pairs: pairs } };
+}
+
+function handleUserWeekStatus_(data) {
+  initSheets_();
+  const angeles = readAngelesRows_();
+  const sh = getSs_().getSheetByName("Pendientes");
+  const env = getSs_().getSheetByName("Enviados");
+  const v = sh.getDataRange().getValues();
+  const vEnv = env.getDataRange().getValues();
+  const currentWk = computeWeekKey_();
+  const wk = (data && data.week) ? String(data.week) : currentWk;
+  const out = [];
+  
+  angeles.forEach(function (a) {
+    let st = "MISSING";
+    
+    for (let r = 1; r < vEnv.length; r++) {
+      if (String(vEnv[r][0]) !== wk) continue;
+      if (String(vEnv[r][1]) === a.nombre_angel && String(vEnv[r][2]) === a.nombre_angelado) {
+        st = "SENT";
+      }
+    }
+    
+    for (let r = 1; r < v.length; r++) {
+      if (String(v[r][0]) !== wk) continue;
+      if (String(v[r][1]) === a.nombre_angel && String(v[r][2]) === a.nombre_angelado) {
+        st = String(v[r][5] || "PENDING");
+      }
+    }
+    
+    out.push({ angel: a.nombre_angel, status: st });
+  });
+  
+  return { status: "SUCCESS", data: { rows: out, current_week: currentWk, requested_week: wk } };
+}
+
+function handleFetchInboxReplies_() {
+  const emails = readAngelesRows_()
+    .map(function (r) {
+      return String(r.email_angelado || "").trim().toLowerCase();
+    })
+    .filter(Boolean);
+  const threads = GmailApp.getInboxThreads(0, 30);
+  const items = [];
+  const angeles = readAngelesRows_();
+  threads.forEach(function (th) {
+    const msgs = th.getMessages();
+    msgs.forEach(function (m) {
+      const from = String(m.getFrom() || "").toLowerCase();
+      let matchEmail = "";
+      emails.forEach(function (em) {
+        if (from.indexOf(em) !== -1) matchEmail = em;
+      });
+      if (!matchEmail) return;
+      let angeladoName = "";
+      let angelName = "";
+      angeles.forEach(function (r) {
+        if (String(r.email_angelado || "").toLowerCase() === matchEmail) {
+          angeladoName = r.nombre_angelado;
+          angelName = r.nombre_angel;
+        }
+      });
+      const title = "Respuesta de " + angeladoName + " a " + angelName;
+      items.push({
+        title: title,
+        text: m.getPlainBody(),
+        html: m.getBody()
+      });
+    });
+  });
+  return { status: "SUCCESS", data: { items: items } };
+}

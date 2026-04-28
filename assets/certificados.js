@@ -330,7 +330,7 @@
 
     window.initCertificadosAdminApp = function initCertificadosAdminApp({ showMessage, getSession }) {
         const root = document.getElementById("certificados");
-        if (!root || root.dataset.certAdminBound === "true") return;
+        if (!root || root.dataset.certAdminBound === "true") return Promise.resolve();
         root.dataset.certAdminBound = "true";
 
         const form = document.getElementById("cert-form-emitir");
@@ -607,6 +607,8 @@
                 }
             });
         }
+
+        return Promise.resolve();
     };
 
     if (!window.__cpmCertModalEscBound) {
@@ -622,7 +624,7 @@
 
     window.initCanjePublicoApp = function initCanjePublicoApp({ showMessage }) {
         const root = document.getElementById("canje");
-        if (!root || root.dataset.canjePublicBound === "true") return;
+        if (!root || root.dataset.canjePublicBound === "true") return Promise.resolve();
         root.dataset.canjePublicBound = "true";
 
         const input = document.getElementById("canje-public-codigo");
@@ -683,5 +685,7 @@
                 }
             });
         }
+
+        return Promise.resolve();
     };
 })();

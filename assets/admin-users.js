@@ -53,7 +53,7 @@
 
     window.initAdminUsersApp = function initAdminUsersApp({ showMessage, getSession, callBackend }) {
         const root = document.getElementById("admin");
-        if (!root || root.dataset.adminUsersBound === "true") return;
+        if (!root || root.dataset.adminUsersBound === "true") return Promise.resolve();
         root.dataset.adminUsersBound = "true";
 
         const tbody = document.getElementById("admin-users-tbody");
@@ -281,6 +281,6 @@
         });
         btnReload?.addEventListener("click", loadUsers);
 
-        loadUsers();
+        return loadUsers();
     };
 })();
