@@ -475,14 +475,20 @@
                             </label>
                             <label>Hora <input type="number" id="adm-cron-h" min="0" max="23" value="22" /></label>
                             <label>Minuto <input type="number" id="adm-cron-m" min="0" max="59" value="0" /></label>
+                            <label>Batch <input type="number" id="adm-cron-batch" min="1" max="50" value="3" /></label>
+                            <label>Pausa (ms) <input type="number" id="adm-cron-sleep" min="0" max="30000" value="2000" /></label>
                             <button type="button" class="angels-btn angels-btn--primary" id="adm-save-cron">Guardar</button>
+                        </div>
+                        <p class="angels-hint" id="adm-cron-diag">—</p>
+                        <div class="angels-row angels-row--end">
+                            <button type="button" class="angels-btn" id="adm-install-trigger">Reinstalar trigger</button>
+                            <button type="button" class="angels-btn angels-btn--danger" id="adm-run-queue-now">Ejecutar cola ahora</button>
                         </div>
                     </div>
                 </div>
                 <div class="angels-tab-panel" data-adpanel="maint">
                     <div class="angels-row angels-row--end angels-mb">
                         <button type="button" class="angels-btn" id="adm-reload-pend">Refrescar</button>
-                        <button type="button" class="angels-btn angels-btn--primary" id="adm-force-send">Forzar envío pendientes (Semana actual)</button>
                     </div>
                     <div class="angels-form-grid angels-glass" style="padding: 0.75rem; border-radius: 10px;">
                         <div class="angels-row">

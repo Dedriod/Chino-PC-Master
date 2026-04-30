@@ -1811,12 +1811,26 @@
                 const dow = Number(cron.day_of_week);
                 const hour = Number(cron.hour);
                 const minute = Number(cron.minute);
+                const batch = Number(cron.batch_size);
+                const sleep = Number(cron.sleep_ms);
+                const trig = Boolean(sch.data?.trigger_installed || sch.trigger_installed);
                 const elDow = document.getElementById("adm-cron-dow");
                 const elH = document.getElementById("adm-cron-h");
                 const elM = document.getElementById("adm-cron-m");
+                const elB = document.getElementById("adm-cron-batch");
+                const elS = document.getElementById("adm-cron-sleep");
+                const diag = document.getElementById("adm-cron-diag");
                 if (elDow && !Number.isNaN(dow)) elDow.value = String(dow);
                 if (elH && !Number.isNaN(hour)) elH.value = String(hour);
                 if (elM && !Number.isNaN(minute)) elM.value = String(minute);
+                if (elB && !Number.isNaN(batch)) elB.value = String(batch);
+                if (elS && !Number.isNaN(sleep)) elS.value = String(sleep);
+                if (diag) {
+                    const tz = String(sch.data?.timezone || sch.timezone || "");
+                    const wk = String(sch.data?.computed_week || sch.computed_week || "");
+                    const nowLocal = String(sch.data?.now_local || sch.now_local || "");
+                    diag.textContent = `Zona horaria: ${tz || "—"} · Semana: ${wk || "—"} · Ahora: ${nowLocal || "—"} · Trigger: ${trig ? "Instalado" : "No instalado"}`;
+                }
             } catch (e) {
                 // Si falla, dejamos los defaults del HTML; el guardado seguirá funcionando.
             }
@@ -1860,9 +1874,33 @@
                 action: "save_schedule",
                 day_of_week: Number(document.getElementById("adm-cron-dow")?.value),
                 hour: Number(document.getElementById("adm-cron-h")?.value),
-                minute: Number(document.getElementById("adm-cron-m")?.value)
+                minute: Number(document.getElementById("adm-cron-m")?.value),
+                batch_size: Number(document.getElementById("adm-cron-batch")?.value),
+                sleep_ms: Number(document.getElementById("adm-cron-sleep")?.value)
             });
             showMessage("Cronograma guardado.", "success");
+            await loadAngelesTable();
+        });
+
+        document.getElementById("adm-install-trigger")?.addEventListener("click", async () => {
+            if (!resolved) return;
+            const pass = window.prompt("Contraseña admin (para reinstalar trigger):") || "";
+            if (!pass.trim()) return;
+            await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "admin_install_trigger", password: pass });
+            showMessage("Trigger reinstalado.", "success");
+            await loadAngelesTable();
+        });
+
+        document.getElementById("adm-run-queue-now")?.addEventListener("click", async () => {
+            if (!resolved) return;
+            const pass = window.prompt("Contraseña admin (ejecución de emergencia):") || "";
+            if (!pass.trim()) return;
+            await withLocalPanelLoading(document.querySelector('[data-adpanel="maint"]'), async () => {
+                const res = await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "admin_run_queue_now", password: pass });
+                const d = res.data || res;
+                showMessage(`Cola ejecutada. Enviados: ${d.sent || 0}. Errores: ${d.errors || 0}.`, "success", 9000);
+                await loadPendientes();
+            });
         });
 
         let allPendRows = [];
@@ -1884,11 +1922,8 @@
             tb.innerHTML = filtered
                 .map((r) => {
                     const st = String(r.status || "");
-                    const btnSend = (st === "PENDING" || st === "ERROR") 
-                        ? `<button type="button" class="angels-btn angels-btn--sm adm-force-row" data-row="${r.row_index}">Enviar</button>`
-                        : "";
                     const btnDel = `<button type="button" class="angels-btn angels-btn--sm angels-btn--danger adm-delete-row" data-row="${r.row_index}">Eliminar</button>`;
-                    return `<tr><td>${esc(r.week)}</td><td>${esc(r.angel)}</td><td>${esc(r.angelado)}</td><td>${esc(st)}</td><td><div style="display:flex;gap:8px;">${btnSend}${btnDel}</div></td></tr>`;
+                    return `<tr><td>${esc(r.week)}</td><td>${esc(r.angel)}</td><td>${esc(r.angelado)}</td><td>${esc(st)}</td><td><div style="display:flex;gap:8px;">${btnDel}</div></td></tr>`;
                 })
                 .join("");
         }
@@ -1923,33 +1958,9 @@
 
         document.getElementById("adm-reload-pend")?.addEventListener("click", () => withLocalPanelLoading(document.querySelector('[data-adpanel="maint"]'), loadPendientes));
         
-        document.getElementById("adm-force-send")?.addEventListener("click", async () => {
-            if (!resolved) return;
-            await withLocalPanelLoading(document.querySelector('[data-adpanel="maint"]'), async () => {
-                const res = await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "force_send_pending" });
-                showMessage(`Enviados: ${res.data?.sent || 0}. Errores: ${res.data?.errors || 0}.`, "success");
-                await loadPendientes();
-            });
-        });
-
         document.querySelector("#adm-pend-table")?.addEventListener("click", async (e) => {
             if (!resolved) return;
             
-            const btnSend = e.target.closest(".adm-force-row");
-            if (btnSend) {
-                const rowIx = btnSend.getAttribute("data-row");
-                await withLocalPanelLoading(document.querySelector('[data-adpanel="maint"]'), async () => {
-                    const res = await api.postSender(resolved.sender_exec_url, resolved.secret, { 
-                        action: "force_send_pending",
-                        row_index: rowIx
-                    });
-                    if (res.data?.errors > 0) showMessage("Error al enviar el mensaje.", "error");
-                    else showMessage("Mensaje enviado con éxito.", "success");
-                    await loadPendientes();
-                });
-                return;
-            }
-
             const btnDel = e.target.closest(".adm-delete-row");
             if (btnDel) {
                 if (!window.confirm("¿Seguro que deseas eliminar este mensaje? Esta acción no se puede deshacer.")) return;

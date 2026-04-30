@@ -30,8 +30,10 @@ function doPost(e) {
     if (action === "save_schedule") return jsonOut_(handleSaveSchedule_(data));
     if (action === "get_schedule") return jsonOut_(handleGetSchedule_());
     if (action === "list_pendientes") return jsonOut_(handleListPendientes_());
-    if (action === "force_send_pending") return jsonOut_(handleForceSendPending_(data));
+    // Envíos de correo: SOLO por trigger time-driven interno (anti-spam). No exponer envío por Web App.
     if (action === "admin_delete_pending") return jsonOut_(handleAdminDeletePending_(data));
+    if (action === "admin_run_queue_now") return jsonOut_(handleAdminRunQueueNow_(data));
+    if (action === "admin_install_trigger") return jsonOut_(handleAdminInstallTrigger_(data));
     if (action === "user_list_angeles") return jsonOut_(handleGetAngeles_());
     if (action === "user_save_message") return jsonOut_(handleUserSaveMessage_(data));
     if (action === "user_list_buddies") return jsonOut_(handleUserListBuddies_());
@@ -126,6 +128,15 @@ function handleAdminLogin_(data) {
   return { status: "SUCCESS", data: { ok: true } };
 }
 
+function assertAdmin_(data) {
+  const salt = String(getProp_("ADMIN_SALT") || "");
+  const expected = String(getProp_("ADMIN_PASS_HASH") || "");
+  const pass = String(data && data.password != null ? data.password : "");
+  if (!salt || !expected) throw new Error("Emisor sin configuración (setup_project).");
+  const h = sha256Hex_(salt + ":" + pass);
+  if (h !== expected) throw new Error("Contraseña incorrecta.");
+}
+
 function getSs_() {
   const id = String(getProp_("SPREADSHEET_ID") || "").trim();
   if (!id) throw new Error("Falta SPREADSHEET_ID.");
@@ -148,6 +159,8 @@ function initSheets_() {
         sh.getRange("A1").setValue(3);
         sh.getRange("B1").setValue(22);
         sh.getRange("C1").setValue(0);
+        sh.getRange("D1").setValue(3); // batch_size
+        sh.getRange("E1").setValue(2000); // sleep_ms
       }
     }
   });
@@ -229,9 +242,15 @@ function handleSaveSchedule_(data) {
   const dow = Math.max(0, Math.min(6, Number(data.day_of_week)));
   const hour = Math.max(0, Math.min(23, Number(data.hour)));
   const minute = Math.max(0, Math.min(59, Number(data.minute)));
+  const batchSize = Math.max(1, Math.min(50, Number(data.batch_size)));
+  const sleepMs = Math.max(0, Math.min(30000, Number(data.sleep_ms)));
   sh.getRange("A1").setValue(dow);
   sh.getRange("B1").setValue(hour);
   sh.getRange("C1").setValue(minute);
+  sh.getRange("D1").setValue(batchSize);
+  sh.getRange("E1").setValue(sleepMs);
+  // Mantener trigger semanal sincronizado con el cronograma guardado.
+  installOrUpdateTrigger_();
   return { status: "SUCCESS", data: { ok: true } };
 }
 
@@ -240,7 +259,9 @@ function readCron_(ss) {
   const dow = Math.max(0, Math.min(6, Number(sh.getRange("A1").getValue() || 0)));
   const hour = Math.max(0, Math.min(23, Number(sh.getRange("B1").getValue() || 0)));
   const minute = Math.max(0, Math.min(59, Number(sh.getRange("C1").getValue() || 0)));
-  return { day_of_week: dow, hour: hour, minute: minute };
+  const batchSize = Math.max(1, Math.min(50, Number(sh.getRange("D1").getValue() || 3)));
+  const sleepMs = Math.max(0, Math.min(30000, Number(sh.getRange("E1").getValue() || 2000)));
+  return { day_of_week: dow, hour: hour, minute: minute, batch_size: batchSize, sleep_ms: sleepMs };
 }
 
 function ymdToDayIndex_(y, m, d) {
@@ -317,6 +338,9 @@ function handleGetSchedule_() {
   const wk = computeWeekKey_();
   const startIso = String(getProp_("FECHA_INICIO_ISO") || "").trim();
   const now = nowLocalParts_(tz);
+  const hasTrigger = ScriptApp.getProjectTriggers().some(function (t) {
+    return t.getHandlerFunction && t.getHandlerFunction() === "processPendingQueue_";
+  });
 
   return {
     status: "SUCCESS",
@@ -325,9 +349,103 @@ function handleGetSchedule_() {
       start_iso: startIso,
       cron: cron,
       computed_week: wk,
-      now_local: Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm")
+      now_local: Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm"),
+      trigger_installed: hasTrigger
     }
   };
+}
+
+function weekDayFromDow_(dow) {
+  const d = Number(dow);
+  if (d === 0) return ScriptApp.WeekDay.SUNDAY;
+  if (d === 1) return ScriptApp.WeekDay.MONDAY;
+  if (d === 2) return ScriptApp.WeekDay.TUESDAY;
+  if (d === 3) return ScriptApp.WeekDay.WEDNESDAY;
+  if (d === 4) return ScriptApp.WeekDay.THURSDAY;
+  if (d === 5) return ScriptApp.WeekDay.FRIDAY;
+  return ScriptApp.WeekDay.SATURDAY;
+}
+
+function installOrUpdateTrigger_() {
+  initSheets_();
+  const cron = readCron_(getSs_());
+  const handler = "processPendingQueue_";
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function (t) {
+    try {
+      if (t.getHandlerFunction && t.getHandlerFunction() === handler) {
+        ScriptApp.deleteTrigger(t);
+      }
+    } catch (e) {}
+  });
+  ScriptApp.newTrigger(handler)
+    .timeBased()
+    .onWeekDay(weekDayFromDow_(cron.day_of_week))
+    .atHour(Number(cron.hour))
+    .nearMinute(Number(cron.minute))
+    .create();
+}
+
+function processPendingQueue_() {
+  initSheets_();
+  const ss = getSs_();
+  const sh = ss.getSheetByName("Pendientes");
+  const env = ss.getSheetByName("Enviados");
+  const v = sh.getDataRange().getValues();
+  const cron = readCron_(ss);
+  const wk = computeWeekKey_();
+  const subject = getSubjectFromDesign_();
+  const batchSize = Math.max(1, Number(cron.batch_size) || 3);
+  const sleepMs = Math.max(0, Number(cron.sleep_ms) || 0);
+
+  let sent = 0;
+  let errors = 0;
+  let processed = 0;
+  const startedAt = Date.now();
+  const maxRuntimeMs = 330000; // ~5.5 min (Apps Script suele cortar cerca de 6 min)
+
+  for (let r = 1; r < v.length; r++) {
+    if (Date.now() - startedAt > maxRuntimeMs) break;
+    if (String(v[r][0]) !== wk) continue;
+    const st = String(v[r][5] || "");
+    if (st !== "PENDING" && st !== "ERROR") continue;
+
+    const email = String(v[r][3] || "");
+    const html = String(v[r][4] || "");
+    if (!email || !html) continue;
+
+    try {
+      GmailApp.sendEmail(email, subject, "Ver en HTML.", { htmlBody: html });
+      sh.getRange(r + 1, 6).setValue("SENT");
+      env.appendRow([String(v[r][0]), v[r][1], v[r][2], email, html, new Date().toISOString()]);
+      sent++;
+    } catch (e) {
+      sh.getRange(r + 1, 6).setValue("ERROR");
+      errors++;
+    }
+
+    processed++;
+    if (sleepMs > 0) Utilities.sleep(sleepMs);
+    // batchSize solo se usa como “chunking” lógico (si en el futuro queremos commits/flush),
+    // pero hoy el barrido se hace en una sola ejecución.
+    if (batchSize > 0 && processed % batchSize === 0) {
+      // Sin-op: punto de corte para futuras mejoras; mantenemos lectura humana del flujo.
+    }
+  }
+
+  return { sent: sent, errors: errors, processed: processed, week: wk };
+}
+
+function handleAdminRunQueueNow_(data) {
+  assertAdmin_(data);
+  const out = processPendingQueue_();
+  return { status: "SUCCESS", data: out };
+}
+
+function handleAdminInstallTrigger_(data) {
+  assertAdmin_(data);
+  installOrUpdateTrigger_();
+  return { status: "SUCCESS", data: { ok: true } };
 }
 
 function readDesignObject_() {

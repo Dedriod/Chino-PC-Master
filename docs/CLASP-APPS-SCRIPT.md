@@ -129,6 +129,38 @@ clasp redeploy TU_DEPLOYMENT_ID -V NUMERO_VERSION -d "notas"
 - En el sitio: `window.CPM_ANGELS_MASTER_GAS_URL` en `index.html` (URL `/exec` del Maestro).
 - **ID de implementación** del Web App Maestro (para `clasp redeploy`): `ChinoPCMasterAppScripts\fuentes-apps-script\angels_maestro\webapp-deployment-id.txt`; la URL canónica también está en `Angels_Maestro\LEEME.txt`.
 
+#### Emisor: modelo anti-spam (cola + trigger semanal)
+
+Para evitar que Google marque el sistema como “spammy”, el envío se hace así:
+
+- La web (`#u/...`) **no envía correos**. Solo guarda filas en la hoja `Pendientes` (estado `PENDING`).
+- El Apps Script Emisor envía **solo por un Time-Driven Trigger** de Google (interno), ejecutando `processPendingQueue_()` en el día/hora configurados en `Cron`.
+- Existe una acción de emergencia **solo admin** (“Ejecutar cola ahora”) para casos excepcionales.
+
+**Dónde se guarda el cronograma**
+
+- Sheet `Cron` del Spreadsheet del Emisor:
+  - `A1`: `day_of_week` (0=Dom..6=Sáb)
+  - `B1`: `hour` (0..23)
+  - `C1`: `minute` (0..59)
+  - `D1`: `batch_size` (1..50)
+  - `E1`: `sleep_ms` (0..30000)
+
+**Instalar/actualizar el trigger**
+
+- Opción recomendada: en el panel admin `#a/...` → pestaña **Ángeles** → “Cronograma envío” → **Guardar**.
+  Esto actualiza `Cron` y sincroniza el trigger semanal con el día/hora/minuto configurados.
+- Alternativa: mismo panel → botón “Reinstalar trigger”.
+- Verificación: en Apps Script → **Activadores** → debe existir un trigger semanal para `processPendingQueue_()`.
+
+**Checklist de verificación**
+
+- Persistencia: guardar cronograma + batch/sleep → recargar → se repuebla desde el servidor.
+- Trigger: al guardar cronograma, queda instalado el trigger semanal exacto.
+- Barrido: con varios `PENDING` de la semana actual, al ejecutar `processPendingQueue_()` manualmente (o por trigger) se envían todos, respetando `sleep_ms`.
+- Semana/corte: `computeWeekKey_()` cambia justo después del DOW/hora/minuto del cronograma (no por semanas “flotantes”).
+- Emergencia: “Ejecutar cola ahora” funciona solo con contraseña admin.
+
 ---
 
 ## Problemas frecuentes
