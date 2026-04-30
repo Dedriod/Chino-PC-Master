@@ -395,6 +395,7 @@ function handleForceSendPending_(data) {
       sh.getRange(r + 1, 6).setValue("ERROR");
       errors++;
     }
+    Utilities.sleep(2000);
   }
   return { status: "SUCCESS", data: { sent: sent, errors: errors } };
 }
