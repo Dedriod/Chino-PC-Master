@@ -134,32 +134,36 @@ clasp redeploy TU_DEPLOYMENT_ID -V NUMERO_VERSION -d "notas"
 Para evitar que Google marque el sistema como “spammy”, el envío se hace así:
 
 - La web (`#u/...`) **no envía correos**. Solo guarda filas en la hoja `Pendientes` (estado `PENDING`).
-- El Apps Script Emisor envía **solo por un Time-Driven Trigger** de Google (interno), ejecutando `processPendingQueue_()` en el día/hora configurados en `Cron`.
-- Existe una acción de emergencia **solo admin** (“Ejecutar cola ahora”) para casos excepcionales.
+- El Apps Script Emisor envía **solo por un Time-Driven Trigger** de Google (interno), ejecutando `processPendingQueue_()`. El día de envío operativo es **miércoles** (configúralo en el editor de Apps Script; no hay hoja `Cron` ni UI de cronograma en el admin).
+- Existe una acción de emergencia **solo admin** (“Ejecutar cola ahora”, pestaña Mantenimiento) para casos excepcionales.
 
-**Dónde se guarda el cronograma**
+**Semanas y numeración (W1, W2, …)**
 
-- Sheet `Cron` del Spreadsheet del Emisor:
-  - `A1`: `day_of_week` (0=Dom..6=Sáb)
-  - `B1`: `hour` (0..23)
-  - `C1`: `minute` (0..59)
-  - `D1`: `batch_size` (1..50)
-  - `E1`: `sleep_ms` (0..30000)
+- Una semana del proyecto va de **jueves 00:00** a **miércoles** (fin de día) en la zona `Session.getScriptTimeZone()` del script.
+- **W1** es la semana que contiene `FECHA_INICIO_ISO` (Script Property). `computeWeekKey_()` no usa hoja Cron.
+- Cada ángel puede tener **como máximo un mensaje por semana** (`week_key` + `nombre_angel`); el guardado lo valida en `user_save_message`.
 
-**Instalar/actualizar el trigger**
+**Pausa entre envíos**
 
-- Opción recomendada: en el panel admin `#a/...` → pestaña **Ángeles** → “Cronograma envío” → **Guardar**.
-  Esto actualiza `Cron` y sincroniza el trigger semanal con el día/hora/minuto configurados.
-- Alternativa: mismo panel → botón “Reinstalar trigger”.
-- Verificación: en Apps Script → **Activadores** → debe existir un trigger semanal para `processPendingQueue_()`.
+- Opcional: Script Property `QUEUE_SLEEP_MS` (0–30000; por defecto 2000). Ya no se guarda en ninguna hoja.
+
+**Instalar / actualizar el trigger (en Google)**
+
+1. Abre el proyecto **Emisor** en Apps Script.
+2. **Activadores** → **Añadir activador**.
+3. Función: `processPendingQueue_`.
+4. Evento: basado en el tiempo → reloj → **semanal** → día **miércoles** (elige hora, p. ej. noche en tu zona).
+5. Guarda y acepta permisos si hace falta.
+
+Verificación: **Activadores** debe listar el trigger semanal para `processPendingQueue_()`. El admin puede ver si aparece “instalado” vía la acción `get_sender_info` (texto de estado bajo la tabla de ángeles).
 
 **Checklist de verificación**
 
-- Persistencia: guardar cronograma + batch/sleep → recargar → se repuebla desde el servidor.
-- Trigger: al guardar cronograma, queda instalado el trigger semanal exacto.
-- Barrido: con varios `PENDING` de la semana actual, al ejecutar `processPendingQueue_()` manualmente (o por trigger) se envían todos, respetando `sleep_ms`.
-- Semana/corte: `computeWeekKey_()` cambia justo después del DOW/hora/minuto del cronograma (no por semanas “flotantes”).
-- Emergencia: “Ejecutar cola ahora” funciona solo con contraseña admin.
+- Semana: `get_sender_info` / `computeWeekKey_()` coherente con jueves→miércoles y W1 desde `FECHA_INICIO_ISO`.
+- Cola: varias filas `PENDING`/`ERROR` con `week_key` ≤ semana actual → `processPendingQueue_()` las envía en orden de semana (atrasados primero), con pausa `QUEUE_SLEEP_MS`.
+- Idempotencia: filas `SENT` no se reenvían.
+- Uno por semana: segundo `user_save_message` mismo ángel y misma semana → error.
+- Emergencia: “Ejecutar cola ahora” solo con contraseña admin.
 
 ---
 

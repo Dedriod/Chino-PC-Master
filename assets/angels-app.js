@@ -1804,35 +1804,24 @@
                 tb.appendChild(tr);
             });
 
-            // Cargar cronograma real desde el Emisor (persistente en Sheet "Cron")
             try {
-                const sch = await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "get_schedule" });
-                const cron = sch.data?.cron || sch.cron || {};
-                const dow = Number(cron.day_of_week);
-                const hour = Number(cron.hour);
-                const minute = Number(cron.minute);
-                const batch = Number(cron.batch_size);
-                const sleep = Number(cron.sleep_ms);
-                const trig = Boolean(sch.data?.trigger_installed || sch.trigger_installed);
-                const elDow = document.getElementById("adm-cron-dow");
-                const elH = document.getElementById("adm-cron-h");
-                const elM = document.getElementById("adm-cron-m");
-                const elB = document.getElementById("adm-cron-batch");
-                const elS = document.getElementById("adm-cron-sleep");
-                const diag = document.getElementById("adm-cron-diag");
-                if (elDow && !Number.isNaN(dow)) elDow.value = String(dow);
-                if (elH && !Number.isNaN(hour)) elH.value = String(hour);
-                if (elM && !Number.isNaN(minute)) elM.value = String(minute);
-                if (elB && !Number.isNaN(batch)) elB.value = String(batch);
-                if (elS && !Number.isNaN(sleep)) elS.value = String(sleep);
-                if (diag) {
-                    const tz = String(sch.data?.timezone || sch.timezone || "");
-                    const wk = String(sch.data?.computed_week || sch.computed_week || "");
-                    const nowLocal = String(sch.data?.now_local || sch.now_local || "");
-                    diag.textContent = `Zona horaria: ${tz || "—"} · Semana: ${wk || "—"} · Ahora: ${nowLocal || "—"} · Trigger: ${trig ? "Instalado" : "No instalado"}`;
+                const sch = await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "get_sender_info" });
+                const d = sch.data || sch;
+                const hint = document.getElementById("adm-sender-hint");
+                if (hint) {
+                    const tz = String(d.timezone || "");
+                    const wk = String(d.computed_week || "");
+                    const nowLocal = String(d.now_local || "");
+                    const trig = Boolean(d.trigger_installed);
+                    const sleep = d.queue_sleep_ms != null ? String(d.queue_sleep_ms) : "—";
+                    hint.innerHTML = `Semanas jueves→miércoles (W1 desde fecha de inicio). Envío automático: activador semanal los <strong>miércoles</strong> en Apps Script. Zona: ${tz || "—"} · Semana actual: ${wk || "—"} · Reloj: ${nowLocal || "—"} · Trigger: ${trig ? "instalado" : "no instalado"} · Pausa cola: ${sleep} ms`;
                 }
             } catch (e) {
-                // Si falla, dejamos los defaults del HTML; el guardado seguirá funcionando.
+                const hint = document.getElementById("adm-sender-hint");
+                if (hint) {
+                    hint.textContent =
+                        "No se pudo cargar el estado del Emisor. Semanas jueves→miércoles; configura el activador semanal (miércoles) en el proyecto Apps Script.";
+                }
             }
         }
 
@@ -1866,29 +1855,6 @@
                 rows
             });
             showMessage("Tabla guardada.", "success");
-        });
-
-        document.getElementById("adm-save-cron")?.addEventListener("click", async () => {
-            if (!resolved) return;
-            await api.postSender(resolved.sender_exec_url, resolved.secret, {
-                action: "save_schedule",
-                day_of_week: Number(document.getElementById("adm-cron-dow")?.value),
-                hour: Number(document.getElementById("adm-cron-h")?.value),
-                minute: Number(document.getElementById("adm-cron-m")?.value),
-                batch_size: Number(document.getElementById("adm-cron-batch")?.value),
-                sleep_ms: Number(document.getElementById("adm-cron-sleep")?.value)
-            });
-            showMessage("Cronograma guardado.", "success");
-            await loadAngelesTable();
-        });
-
-        document.getElementById("adm-install-trigger")?.addEventListener("click", async () => {
-            if (!resolved) return;
-            const pass = window.prompt("Contraseña admin (para reinstalar trigger):") || "";
-            if (!pass.trim()) return;
-            await api.postSender(resolved.sender_exec_url, resolved.secret, { action: "admin_install_trigger", password: pass });
-            showMessage("Trigger reinstalado.", "success");
-            await loadAngelesTable();
         });
 
         document.getElementById("adm-run-queue-now")?.addEventListener("click", async () => {

@@ -1,6 +1,7 @@
 /**
  * Ángeles — Apps Script Emisor (hojas locales, cola de envío, Gmail).
- * Script Properties: SPREADSHEET_ID, PROJECT_SECRET, ADMIN_SALT, ADMIN_PASS_HASH, FECHA_INICIO_ISO
+ * Script Properties: SPREADSHEET_ID, PROJECT_SECRET, ADMIN_SALT, ADMIN_PASS_HASH, FECHA_INICIO_ISO, QUEUE_SLEEP_MS (opcional, ms entre envíos; default 2000)
+ * Semanas: jueves 00:00 → miércoles fin de día (zona del script). W1 = semana que contiene FECHA_INICIO_ISO. Envío automático: activador semanal **miércoles** en el editor de Google (no hoja Cron).
  * Tras crear proyecto en Maestro, ejecuta acción setup_project con los datos devueltos (una vez).
  *
  * Copia sincronizada desde ChinoPCMasterAppScripts/fuentes-apps-script/angels_sender/Código.js
@@ -27,13 +28,11 @@ function doPost(e) {
     if (action === "save_design") return jsonOut_(handleSaveDesign_(data));
     if (action === "get_angeles") return jsonOut_(handleGetAngeles_());
     if (action === "save_angeles") return jsonOut_(handleSaveAngeles_(data));
-    if (action === "save_schedule") return jsonOut_(handleSaveSchedule_(data));
-    if (action === "get_schedule") return jsonOut_(handleGetSchedule_());
+    if (action === "get_sender_info") return jsonOut_(handleGetSenderInfo_());
     if (action === "list_pendientes") return jsonOut_(handleListPendientes_());
     // Envíos de correo: SOLO por trigger time-driven interno (anti-spam). No exponer envío por Web App.
     if (action === "admin_delete_pending") return jsonOut_(handleAdminDeletePending_(data));
     if (action === "admin_run_queue_now") return jsonOut_(handleAdminRunQueueNow_(data));
-    if (action === "admin_install_trigger") return jsonOut_(handleAdminInstallTrigger_(data));
     if (action === "user_list_angeles") return jsonOut_(handleGetAngeles_());
     if (action === "user_save_message") return jsonOut_(handleUserSaveMessage_(data));
     if (action === "user_list_buddies") return jsonOut_(handleUserListBuddies_());
@@ -145,7 +144,7 @@ function getSs_() {
 
 function initSheets_() {
   const ss = getSs_();
-  const names = ["Angeles", "Diseno", "Pendientes", "Enviados", "Cron"];
+  const names = ["Angeles", "Diseno", "Pendientes", "Enviados"];
   names.forEach(function (n) {
     if (!ss.getSheetByName(n)) {
       const sh = ss.insertSheet(n);
@@ -155,13 +154,6 @@ function initSheets_() {
         sh.appendRow(["week_key", "nombre_angel", "nombre_angelado", "email_angelado", "html_mensaje", "status", "created_at"]);
       if (n === "Enviados")
         sh.appendRow(["week_key", "nombre_angel", "nombre_angelado", "email_angelado", "html_mensaje", "sent_at"]);
-      if (n === "Cron") {
-        sh.getRange("A1").setValue(3);
-        sh.getRange("B1").setValue(22);
-        sh.getRange("C1").setValue(0);
-        sh.getRange("D1").setValue(3); // batch_size
-        sh.getRange("E1").setValue(2000); // sleep_ms
-      }
     }
   });
 }
@@ -236,34 +228,6 @@ function handleSaveAngeles_(data) {
   return { status: "SUCCESS", data: { ok: true } };
 }
 
-function handleSaveSchedule_(data) {
-  initSheets_();
-  const sh = getSs_().getSheetByName("Cron");
-  const dow = Math.max(0, Math.min(6, Number(data.day_of_week)));
-  const hour = Math.max(0, Math.min(23, Number(data.hour)));
-  const minute = Math.max(0, Math.min(59, Number(data.minute)));
-  const batchSize = Math.max(1, Math.min(50, Number(data.batch_size)));
-  const sleepMs = Math.max(0, Math.min(30000, Number(data.sleep_ms)));
-  sh.getRange("A1").setValue(dow);
-  sh.getRange("B1").setValue(hour);
-  sh.getRange("C1").setValue(minute);
-  sh.getRange("D1").setValue(batchSize);
-  sh.getRange("E1").setValue(sleepMs);
-  // Mantener trigger semanal sincronizado con el cronograma guardado.
-  installOrUpdateTrigger_();
-  return { status: "SUCCESS", data: { ok: true } };
-}
-
-function readCron_(ss) {
-  const sh = (ss || getSs_()).getSheetByName("Cron");
-  const dow = Math.max(0, Math.min(6, Number(sh.getRange("A1").getValue() || 0)));
-  const hour = Math.max(0, Math.min(23, Number(sh.getRange("B1").getValue() || 0)));
-  const minute = Math.max(0, Math.min(59, Number(sh.getRange("C1").getValue() || 0)));
-  const batchSize = Math.max(1, Math.min(50, Number(sh.getRange("D1").getValue() || 3)));
-  const sleepMs = Math.max(0, Math.min(30000, Number(sh.getRange("E1").getValue() || 2000)));
-  return { day_of_week: dow, hour: hour, minute: minute, batch_size: batchSize, sleep_ms: sleepMs };
-}
-
 function ymdToDayIndex_(y, m, d) {
   // Días desde 1970-01-01 (gregoriano), estable por Y/M/D sin depender de zona horaria.
   const ms = Date.UTC(Number(y), Number(m) - 1, Number(d), 0, 0, 0);
@@ -274,6 +238,14 @@ function dowFromYmd_(y, m, d) {
   // 0=Domingo..6=Sábado
   const dayIndex = ymdToDayIndex_(y, m, d);
   return (dayIndex + 4) % 7; // 1970-01-01 fue jueves(4)
+}
+
+/** Jueves 00:00 inicio de semana jueves→miércoles: índice de día del jueves que abre la semana que contiene (y,m,d). */
+function thursdayDayIndexForCalendar_(y, m, d) {
+  const idx = ymdToDayIndex_(y, m, d);
+  const dow = dowFromYmd_(y, m, d);
+  const daysSinceThu = (dow - 4 + 7) % 7;
+  return idx - daysSinceThu;
 }
 
 function parseStartIsoToLocalParts_(startIso, tz) {
@@ -310,80 +282,49 @@ function computeWeekKey_() {
   const start = parseStartIsoToLocalParts_(startIso, tz);
   if (!start) return "W0";
 
-  const cron = readCron_(getSs_());
-  const startDay = ymdToDayIndex_(start.y, start.mo, start.d);
-  const startDow = dowFromYmd_(start.y, start.mo, start.d);
-  const startMin = startDay * 1440 + (Number(start.hh) * 60 + Number(start.mm));
-
   const now = nowLocalParts_(tz);
-  const nowDay = ymdToDayIndex_(now.y, now.mo, now.d);
-  const nowMin = nowDay * 1440 + (Number(now.hh) * 60 + Number(now.mm));
-
-  // Primer corte semanal (fin de semana W0) en el DOW/hora configurados.
-  let delta = (Number(cron.day_of_week) - Number(startDow) + 7) % 7;
-  let boundaryDay = startDay + delta;
-  let boundaryMin = boundaryDay * 1440 + (Number(cron.hour) * 60 + Number(cron.minute));
-  if (boundaryMin <= startMin) boundaryMin += 7 * 1440;
-
-  if (nowMin < boundaryMin) return "W0";
-  const w = 1 + Math.floor((nowMin - boundaryMin) / (7 * 1440));
-  return "W" + Math.max(0, w);
+  const startThu = thursdayDayIndexForCalendar_(start.y, start.mo, start.d);
+  const nowThu = thursdayDayIndexForCalendar_(now.y, now.mo, now.d);
+  const n = 1 + Math.floor((nowThu - startThu) / 7);
+  if (n < 1) return "W0";
+  return "W" + n;
 }
 
-function handleGetSchedule_() {
+function handleGetSenderInfo_() {
   initSheets_();
-  const ss = getSs_();
   const tz = Session.getScriptTimeZone();
-  const cron = readCron_(ss);
   const wk = computeWeekKey_();
   const startIso = String(getProp_("FECHA_INICIO_ISO") || "").trim();
-  const now = nowLocalParts_(tz);
   const hasTrigger = ScriptApp.getProjectTriggers().some(function (t) {
     return t.getHandlerFunction && t.getHandlerFunction() === "processPendingQueue_";
   });
-
   return {
     status: "SUCCESS",
     data: {
       timezone: tz,
-      start_iso: startIso,
-      cron: cron,
+      fecha_inicio_iso: startIso,
       computed_week: wk,
       now_local: Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm"),
-      trigger_installed: hasTrigger
+      trigger_installed: hasTrigger,
+      queue_sleep_ms: getQueueSleepMs_(),
+      week_model: "jueves_00:00_a_miercoles_fin",
+      send_day: "miercoles_trigger_manual_en_apps_script"
     }
   };
 }
 
-function weekDayFromDow_(dow) {
-  const d = Number(dow);
-  if (d === 0) return ScriptApp.WeekDay.SUNDAY;
-  if (d === 1) return ScriptApp.WeekDay.MONDAY;
-  if (d === 2) return ScriptApp.WeekDay.TUESDAY;
-  if (d === 3) return ScriptApp.WeekDay.WEDNESDAY;
-  if (d === 4) return ScriptApp.WeekDay.THURSDAY;
-  if (d === 5) return ScriptApp.WeekDay.FRIDAY;
-  return ScriptApp.WeekDay.SATURDAY;
+function weekKeyToNum_(wk) {
+  const m = String(wk || "").match(/^W(\d+)$/i);
+  return m ? Number(m[1]) : -1;
 }
 
-function installOrUpdateTrigger_() {
-  initSheets_();
-  const cron = readCron_(getSs_());
-  const handler = "processPendingQueue_";
-  const triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(function (t) {
-    try {
-      if (t.getHandlerFunction && t.getHandlerFunction() === handler) {
-        ScriptApp.deleteTrigger(t);
-      }
-    } catch (e) {}
-  });
-  ScriptApp.newTrigger(handler)
-    .timeBased()
-    .onWeekDay(weekDayFromDow_(cron.day_of_week))
-    .atHour(Number(cron.hour))
-    .nearMinute(Number(cron.minute))
-    .create();
+function getQueueSleepMs_() {
+  const raw = getProp_("QUEUE_SLEEP_MS");
+  if (raw != null && String(raw).trim() !== "") {
+    const n = Number(raw);
+    if (!isNaN(n) && n >= 0) return Math.min(30000, n);
+  }
+  return 2000;
 }
 
 function processPendingQueue_() {
@@ -392,32 +333,53 @@ function processPendingQueue_() {
   const sh = ss.getSheetByName("Pendientes");
   const env = ss.getSheetByName("Enviados");
   const v = sh.getDataRange().getValues();
-  const cron = readCron_(ss);
-  const wk = computeWeekKey_();
+  const currentWkStr = computeWeekKey_();
+  const currentNum = weekKeyToNum_(currentWkStr);
   const subject = getSubjectFromDesign_();
-  const batchSize = Math.max(1, Number(cron.batch_size) || 3);
-  const sleepMs = Math.max(0, Number(cron.sleep_ms) || 0);
+  const sleepMs = getQueueSleepMs_();
 
   let sent = 0;
   let errors = 0;
   let processed = 0;
   const startedAt = Date.now();
-  const maxRuntimeMs = 330000; // ~5.5 min (Apps Script suele cortar cerca de 6 min)
+  const maxRuntimeMs = 330000;
 
+  const queue = [];
   for (let r = 1; r < v.length; r++) {
-    if (Date.now() - startedAt > maxRuntimeMs) break;
-    if (String(v[r][0]) !== wk) continue;
     const st = String(v[r][5] || "");
     if (st !== "PENDING" && st !== "ERROR") continue;
-
+    const wkStr = String(v[r][0] || "");
+    const wn = weekKeyToNum_(wkStr);
+    if (wn < 0) continue;
+    if (currentNum < 1) continue;
+    if (wn > currentNum) continue;
     const email = String(v[r][3] || "");
     const html = String(v[r][4] || "");
+    if (!email || !html) continue;
+    queue.push({ r: r, wn: wn });
+  }
+  queue.sort(function (a, b) {
+    if (a.wn !== b.wn) return a.wn - b.wn;
+    return a.r - b.r;
+  });
+
+  for (let i = 0; i < queue.length; i++) {
+    if (Date.now() - startedAt > maxRuntimeMs) break;
+    const r = queue[i].r;
+    const st2 = String(sh.getRange(r + 1, 6).getValue() || "");
+    if (st2 !== "PENDING" && st2 !== "ERROR") continue;
+    const rowWk = String(sh.getRange(r + 1, 1).getValue() || "");
+    const wn2 = weekKeyToNum_(rowWk);
+    if (wn2 > currentNum || wn2 < 1) continue;
+
+    const email = String(sh.getRange(r + 1, 4).getValue() || "");
+    const html = String(sh.getRange(r + 1, 5).getValue() || "");
     if (!email || !html) continue;
 
     try {
       GmailApp.sendEmail(email, subject, "Ver en HTML.", { htmlBody: html });
       sh.getRange(r + 1, 6).setValue("SENT");
-      env.appendRow([String(v[r][0]), v[r][1], v[r][2], email, html, new Date().toISOString()]);
+      env.appendRow([rowWk, sh.getRange(r + 1, 2).getValue(), sh.getRange(r + 1, 3).getValue(), email, html, new Date().toISOString()]);
       sent++;
     } catch (e) {
       sh.getRange(r + 1, 6).setValue("ERROR");
@@ -426,26 +388,15 @@ function processPendingQueue_() {
 
     processed++;
     if (sleepMs > 0) Utilities.sleep(sleepMs);
-    // batchSize solo se usa como “chunking” lógico (si en el futuro queremos commits/flush),
-    // pero hoy el barrido se hace en una sola ejecución.
-    if (batchSize > 0 && processed % batchSize === 0) {
-      // Sin-op: punto de corte para futuras mejoras; mantenemos lectura humana del flujo.
-    }
   }
 
-  return { sent: sent, errors: errors, processed: processed, week: wk };
+  return { sent: sent, errors: errors, processed: processed, week: currentWkStr, backlog_through: currentWkStr };
 }
 
 function handleAdminRunQueueNow_(data) {
   assertAdmin_(data);
   const out = processPendingQueue_();
   return { status: "SUCCESS", data: out };
-}
-
-function handleAdminInstallTrigger_(data) {
-  assertAdmin_(data);
-  installOrUpdateTrigger_();
-  return { status: "SUCCESS", data: { ok: true } };
 }
 
 function readDesignObject_() {
@@ -491,13 +442,17 @@ function handleForceSendPending_(data) {
   const subject = getSubjectFromDesign_();
   let sent = 0;
   let errors = 0;
-  
+
   const targetRow = data && data.row_index ? Number(data.row_index) : null;
-  const wk = computeWeekKey_();
+  const currentWkStr = computeWeekKey_();
+  const currentNum = weekKeyToNum_(currentWkStr);
 
   for (let r = 1; r < v.length; r++) {
     if (targetRow && (r + 1) !== targetRow) continue;
-    if (!targetRow && String(v[r][0]) !== wk) continue; // Si no hay targetRow, solo la semana actual
+    if (!targetRow) {
+      const wn = weekKeyToNum_(String(v[r][0] || ""));
+      if (wn < 1 || currentNum < 1 || wn > currentNum) continue;
+    }
     if (String(v[r][5]) !== "PENDING" && String(v[r][5]) !== "ERROR") continue;
     
     const email = String(v[r][3] || "");
@@ -541,9 +496,10 @@ function handleUserSaveMessage_(data) {
 
   for (let r = 1; r < v.length; r++) {
     if (String(v[r][0]) === wk && String(v[r][1]) === angel) {
-      return { 
-        status: "ERROR", 
-        message: "Su mensaje no puede guardarse en el sistema porque ya se ha alojado el mensaje semanal. Puedes contactar a tu Capitán de Ángles Secretos para poder resolver este inconveniente en caso de que requieras asistencia por lo publicado anteriormente." 
+      return {
+        status: "ERROR",
+        message:
+          "Su mensaje no puede guardarse en el sistema porque ya se ha alojado el mensaje semanal. Puedes contactar a tu Capitán de Ángles Secretos para poder resolver este inconveniente en caso de que requieras asistencia por lo publicado anteriormente."
       };
     }
   }
