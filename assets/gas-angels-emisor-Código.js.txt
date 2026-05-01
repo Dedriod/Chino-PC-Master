@@ -1,7 +1,7 @@
 /**
  * Ángeles — Apps Script Emisor (hojas locales, cola de envío, Gmail).
  * Script Properties: SPREADSHEET_ID, PROJECT_SECRET, ADMIN_SALT, ADMIN_PASS_HASH, FECHA_INICIO_ISO, QUEUE_SLEEP_MS (opcional, ms entre envíos; default 2000)
- * Semanas: jueves 00:00 → miércoles fin de día (zona del script). W1 = semana que contiene FECHA_INICIO_ISO. Envío automático: activador semanal **miércoles** en el editor de Google (no hoja Cron).
+ * Semanas: jueves 00:00 → miércoles fin de día (zona del script). W1 = semana que contiene FECHA_INICIO_ISO. Envío automático: activador semanal **miércoles** en el editor de Google apuntando a **processPendingQueue** (función pública; las que terminan en _ no suelen listarse en el menú Ejecutar).
  * Tras crear proyecto en Maestro, ejecuta acción setup_project con los datos devueltos (una vez).
  *
  * Copia sincronizada desde ChinoPCMasterAppScripts/fuentes-apps-script/angels_sender/Código.js
@@ -296,7 +296,8 @@ function handleGetSenderInfo_() {
   const wk = computeWeekKey_();
   const startIso = String(getProp_("FECHA_INICIO_ISO") || "").trim();
   const hasTrigger = ScriptApp.getProjectTriggers().some(function (t) {
-    return t.getHandlerFunction && t.getHandlerFunction() === "processPendingQueue_";
+    const fn = t.getHandlerFunction && t.getHandlerFunction();
+    return fn === "processPendingQueue" || fn === "processPendingQueue_";
   });
   return {
     status: "SUCCESS",
@@ -393,9 +394,22 @@ function processPendingQueue_() {
   return { sent: sent, errors: errors, processed: processed, week: currentWkStr, backlog_through: currentWkStr };
 }
 
+/**
+ * Punto de entrada para el editor de Apps Script: menú **Ejecutar**, **Activadores** y pruebas manuales.
+ * Realiza todo el flujo interno: lee Pendientes, envía Gmail, marca SENT/ERROR, copia a Enviados, respeta semanas y QUEUE_SLEEP_MS.
+ * No está expuesta por la Web App. Configura el disparo semanal (miércoles) sobre esta función, no sobre la variante con sufijo _.
+ */
+function processPendingQueue() {
+  const out = processPendingQueue_();
+  try {
+    Logger.log("[Emisor] processPendingQueue " + JSON.stringify(out));
+  } catch (logErr) {}
+  return out;
+}
+
 function handleAdminRunQueueNow_(data) {
   assertAdmin_(data);
-  const out = processPendingQueue_();
+  const out = processPendingQueue();
   return { status: "SUCCESS", data: out };
 }
 
