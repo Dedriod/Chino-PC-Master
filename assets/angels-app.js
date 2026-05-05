@@ -1362,7 +1362,7 @@
                         else if (stUpper === "PENDING" || stUpper === "LISTO")
                             stHtml = "📧 Pendiente";
                         else if (stUpper === "ERROR") stHtml = "❌ Error";
-                        else stHtml = "📝 Por redactar";
+                        else stHtml = "⚠️ Por redactar";
                         return `<tr><td>${esc(r.angel)}</td><td>${stHtml}</td></tr>`;
                     })
                     .join("");
