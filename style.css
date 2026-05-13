@@ -3609,33 +3609,163 @@ main {
     position: relative;
 }
 
+.angels-user-head {
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    margin: 0 0 0.75rem 0;
+    padding: 0.4rem 0;
+    background: linear-gradient(180deg, rgba(8, 10, 22, 0.98) 55%, rgba(8, 10, 22, 0.82) 85%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.angels-user-head .angels-tabs {
+    margin-bottom: 0;
+    width: 100%;
+}
+
+.angels-user-preview-fab {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0.55rem 1rem;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 229, 255, 0.55);
+    background: rgba(0, 229, 255, 0.12);
+    color: #e0f7fa;
+    font-family: "Orbitron", sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.angels-user-preview-fab[aria-expanded="true"] {
+    background: rgba(0, 229, 255, 0.28);
+    border-color: #00e5ff;
+    color: #fff;
+}
+
+@media (max-width: 900px) {
+    #angels-user-wrap .angels-user-preview-fab.is-visible {
+        display: flex;
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: auto;
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+        box-sizing: border-box;
+        border-radius: 0 0 14px 14px;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        padding: 0.7rem 1rem;
+        padding-top: calc(0.7rem + env(safe-area-inset-top, 0px));
+        z-index: 96;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+        transition: border-radius 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    /* Menú desplegable abierto: barra superior sin radio inferior para fundirse con el panel */
+    #angels-user-wrap .angels-user-preview-fab.is-visible[aria-expanded="true"] {
+        border-radius: 0;
+        box-shadow: none;
+        border-bottom: 1px solid rgba(0, 229, 255, 0.4);
+    }
+
+    /* Espacio bajo la barra fija superior (Vista Previa) para que el bloque de pestañas no quede tapado */
+    #angels-user-wrap:has(.angels-user-preview-fab.is-visible) {
+        padding-top: calc(3.75rem + env(safe-area-inset-top, 0px));
+    }
+
+    #angels-user-wrap:has(.angels-user-preview-fab.is-visible) .angels-user-head {
+        top: calc(3.75rem + env(safe-area-inset-top, 0px));
+    }
+}
+
 .angels-preview-toggle {
     display: none;
     width: 100%;
     margin-bottom: 0.5rem;
 }
 
-@media (max-width: 900px) {
-    .angels-preview-toggle {
-        display: block;
-    }
-    .angels-preview-box {
-        display: none;
-        max-height: 88vh;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-    .angels-preview-box.is-open {
-        display: block;
-    }
-}
-
 .angels-preview-box {
     border-radius: 12px;
     overflow: hidden;
     min-height: 200px;
-    display: flex;
     flex-direction: column;
+}
+
+@media (min-width: 901px) {
+    .angels-preview-box {
+        display: flex;
+    }
+}
+
+@media (max-width: 900px) {
+    .angels-preview-toggle {
+        display: block;
+    }
+    #usr-preview-toggle {
+        display: none !important;
+    }
+    .angels-preview-box:not(.is-open) {
+        display: none !important;
+    }
+    .angels-preview-box.is-open {
+        display: flex !important;
+        flex-direction: column;
+        max-height: 88vh;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Panel anclado al borde inferior del botón fijo «Vista Previa» (mismo ancho, sensación de desplegable) */
+    .angels-split--preview-tall .angels-preview-col.angels-preview-col--floating-open {
+        position: fixed;
+        left: 0;
+        right: 0;
+        top: var(--angels-user-fab-bottom, calc(3.75rem + env(safe-area-inset-top, 0px)));
+        bottom: calc(0.65rem + env(safe-area-inset-bottom, 0px));
+        z-index: 95;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        animation: angels-preview-from-fab 0.2s ease-out;
+    }
+
+    @keyframes angels-preview-from-fab {
+        from {
+            opacity: 0.88;
+            transform: translateY(-6px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .angels-split--preview-tall .angels-preview-col.angels-preview-col--floating-open .angels-preview-box {
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none !important;
+        border-radius: 0 0 14px 14px;
+        border-top: none;
+        box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+    }
+
+    .angels-split--preview-tall .angels-preview-col.angels-preview-col--floating-open .angels-preview-frame {
+        flex: 1 1 auto;
+        min-height: 220px;
+    }
 }
 
 .angels-preview-header {
@@ -4237,6 +4367,13 @@ body.cpm-app-loading #main-content {
 
 body:not(.cpm-app-loading) #main-content {
     opacity: 1;
+}
+
+/* Vista previa móvil (#u Redactar): fondo no debe desplazarse mientras el desplegable está abierto */
+html.cpm-angels-user-preview-scroll-lock,
+body.cpm-angels-user-preview-scroll-lock {
+    overflow: hidden !important;
+    overscroll-behavior: none;
 }
 
 /* Carga de datos solo dentro de un panel Ángeles (evita tapar pestañas y apagar #main-content) */

@@ -495,12 +495,23 @@
     </div>
 
     <div id="angels-user-wrap" class="angels-panel" hidden>
-        <nav class="angels-tabs" role="tablist">
-            <button type="button" class="angels-tab is-active" data-utab="write">Redactar</button>
-            <button type="button" class="angels-tab" data-utab="replies">Respuestas</button>
-            <button type="button" class="angels-tab" data-utab="buddies">Asignaciones</button>
-            <button type="button" class="angels-tab" data-utab="status">Status semanal</button>
-        </nav>
+        <div class="angels-user-head" id="angels-user-head">
+            <nav class="angels-tabs" role="tablist">
+                <button type="button" class="angels-tab is-active" data-utab="write">Redactar</button>
+                <button type="button" class="angels-tab" data-utab="replies">Respuestas</button>
+                <button type="button" class="angels-tab" data-utab="buddies">Asignaciones</button>
+                <button type="button" class="angels-tab" data-utab="status">Status semanal</button>
+            </nav>
+        </div>
+        <button
+            type="button"
+            class="angels-user-preview-fab"
+            id="usr-preview-fab"
+            aria-expanded="false"
+            aria-controls="usr-preview-box"
+        >
+            Vista Previa
+        </button>
         <div class="angels-tab-panels">
             <div class="angels-tab-panel is-active" data-upanel="write">
                 <div class="angels-split angels-split--user angels-split--preview-tall">
@@ -518,7 +529,7 @@
                             spellcheck="true"
                             placeholder="Ej. Hola, un abrazo para ti."
                         ></textarea>
-                        <p class="angels-hint">Texto plano (sin HTML). Si lo dejas vacío se usa el saludo por defecto («Hola Angelado,»). Se guarda en este navegador.</p>
+                        <p class="angels-hint">Acá puedes colocar el saludo para tu Angelado. Recuerda que siempre podrás verificar el estado de tu mensaje en el menú de Vista Previa.</p>
                         <div class="angels-rt-toolbar">
                             <button type="button" class="angels-icon-btn" data-cmd="bold" title="Negrita"><b>B</b></button>
                             <button type="button" class="angels-icon-btn" data-cmd="italic" title="Cursiva"><i>I</i></button>

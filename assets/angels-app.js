@@ -1290,6 +1290,105 @@
         let resolved = null;
         let design = defaultDesign();
 
+        function updateUserHeadOffset() {
+            const head = document.getElementById("angels-user-head");
+            if (head) {
+                document.documentElement.style.setProperty(
+                    "--angels-user-head-bottom",
+                    `${head.getBoundingClientRect().bottom}px`
+                );
+            }
+            const fab = document.getElementById("usr-preview-fab");
+            const mq = window.matchMedia("(max-width: 900px)");
+            if (fab && fab.classList.contains("is-visible") && mq.matches) {
+                document.documentElement.style.setProperty(
+                    "--angels-user-fab-bottom",
+                    `${fab.getBoundingClientRect().bottom}px`
+                );
+            } else {
+                document.documentElement.style.removeProperty("--angels-user-fab-bottom");
+            }
+        }
+
+        function syncUserPreviewFabVisibility() {
+            const fab = document.getElementById("usr-preview-fab");
+            if (!fab) return;
+            const writeActive = document
+                .querySelector('[data-upanel="write"]')
+                ?.classList.contains("is-active");
+            const mq = window.matchMedia("(max-width: 900px)");
+            fab.classList.toggle("is-visible", Boolean(writeActive && mq.matches));
+        }
+
+        function userPreviewIsMobile() {
+            return window.matchMedia("(max-width: 900px)").matches;
+        }
+
+        let userPreviewScrollLockY = 0;
+
+        function setUserPreviewBackgroundScrollLocked(lock) {
+            const html = document.documentElement;
+            const body = document.body;
+            if (lock) {
+                if (!userPreviewIsMobile()) return;
+                if (body.classList.contains("cpm-angels-user-preview-scroll-lock")) return;
+                userPreviewScrollLockY = window.scrollY || window.pageYOffset || 0;
+                body.classList.add("cpm-angels-user-preview-scroll-lock");
+                html.classList.add("cpm-angels-user-preview-scroll-lock");
+                body.style.top = `-${userPreviewScrollLockY}px`;
+                body.style.position = "fixed";
+                body.style.left = "0";
+                body.style.right = "0";
+                body.style.width = "100%";
+            } else {
+                if (!body.classList.contains("cpm-angels-user-preview-scroll-lock")) return;
+                body.classList.remove("cpm-angels-user-preview-scroll-lock");
+                html.classList.remove("cpm-angels-user-preview-scroll-lock");
+                body.style.removeProperty("top");
+                body.style.removeProperty("position");
+                body.style.removeProperty("left");
+                body.style.removeProperty("right");
+                body.style.removeProperty("width");
+                const y = userPreviewScrollLockY;
+                userPreviewScrollLockY = 0;
+                window.scrollTo(0, y);
+            }
+        }
+
+        function setUserPreviewPanelOpen(open) {
+            const box = document.getElementById("usr-preview-box");
+            const col = document.querySelector('[data-upanel="write"] .angels-preview-col');
+            const fab = document.getElementById("usr-preview-fab");
+            const mobile = userPreviewIsMobile();
+            if (!mobile) {
+                col?.classList.remove("angels-preview-col--floating-open");
+                if (fab) fab.setAttribute("aria-expanded", "false");
+                setUserPreviewBackgroundScrollLocked(false);
+                return;
+            }
+            box?.classList.toggle("is-open", open);
+            col?.classList.toggle("angels-preview-col--floating-open", open);
+            fab?.setAttribute("aria-expanded", open ? "true" : "false");
+            setUserPreviewBackgroundScrollLocked(open);
+            if (open) {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        updateUserHeadOffset();
+                        if (typeof updateUserPreview === "function") updateUserPreview();
+                    });
+                });
+            } else {
+                updateUserHeadOffset();
+            }
+        }
+
+        function toggleUserPreviewPanel() {
+            if (!userPreviewIsMobile()) return;
+            const box = document.getElementById("usr-preview-box");
+            const next = !box?.classList.contains("is-open");
+            setUserPreviewPanelOpen(next);
+        }
+
         async function refreshUserDesignFromServer() {
             if (!resolved) return;
             try {
@@ -1411,6 +1510,12 @@
                 const editorCol = document.querySelector('[data-upanel="write"] .angels-editor-col');
                 const panel =
                     id === "write" && editorCol ? editorCol : fullPanel;
+                syncUserPreviewFabVisibility();
+                if (id !== "write") {
+                    setUserPreviewPanelOpen(false);
+                } else {
+                    updateUserHeadOffset();
+                }
                 void (async () => {
                     try {
                         if (id === "write") await withLocalPanelLoading(panel, () => refreshUserDesignFromServer());
@@ -1423,6 +1528,37 @@
                 })();
             });
         });
+
+        window.addEventListener(
+            "resize",
+            () => {
+                syncUserPreviewFabVisibility();
+                if (!userPreviewIsMobile()) {
+                    document
+                        .querySelector('[data-upanel="write"] .angels-preview-col')
+                        ?.classList.remove("angels-preview-col--floating-open");
+                    document.getElementById("usr-preview-box")?.classList.remove("is-open");
+                    document.getElementById("usr-preview-fab")?.setAttribute("aria-expanded", "false");
+                    setUserPreviewBackgroundScrollLocked(false);
+                } else if (document.getElementById("usr-preview-box")?.classList.contains("is-open")) {
+                    updateUserHeadOffset();
+                }
+            },
+            { passive: true }
+        );
+
+        window.addEventListener(
+            "scroll",
+            () => {
+                if (
+                    userPreviewIsMobile() &&
+                    document.getElementById("usr-preview-box")?.classList.contains("is-open")
+                ) {
+                    updateUserHeadOffset();
+                }
+            },
+            { passive: true, capture: true }
+        );
 
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState !== "visible" || !resolved) return;
@@ -1556,9 +1692,9 @@
             );
         }
         ed?.addEventListener("input", updateUserPreview);
-        document.getElementById("usr-preview-toggle")?.addEventListener("click", () => {
-            document.getElementById("usr-preview-box")?.classList.toggle("is-open");
-        });
+        document.getElementById("usr-preview-fab")?.addEventListener("click", toggleUserPreviewPanel);
+        syncUserPreviewFabVisibility();
+        updateUserHeadOffset();
 
         document.getElementById("usr-download-html")?.addEventListener("click", () => {
             const ed = document.getElementById("usr-editor");
